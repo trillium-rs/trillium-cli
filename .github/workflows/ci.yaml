@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest] # [macOS-latest, ubuntu-latest, windows-latest]
+        os: [macOS-latest, ubuntu-latest, windows-latest]
         rust: [nightly, stable]
     steps:
     - uses: actions/checkout@master
@@ -34,23 +34,11 @@ jobs:
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
-    - name: Async-std tests
+    - name: Tests
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all --examples --features async-std
-
-    - name: Tokio tests
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --all --examples --features tokio
-
-    - name: Smol tests
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --all --examples --features smol
+        args: --all --examples
 
   check_fmt_and_docs:
     name: Lints and Docs
@@ -72,4 +60,4 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: Docs
-      run: cargo doc --no-deps --features smol
+      run: cargo doc --no-deps
