@@ -3,7 +3,7 @@ name = "trillium-cli"
 version = "0.0.10"
 authors = ["Jacob Rothstein <hi@jbr.me>"]
 edition = "2018"
-description = "the trillium cli"
+description = "the trillium.rs cli"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 
@@ -22,17 +22,17 @@ log = "0.4.14"
 serde = "1.0.126"
 serde_json = "1.0.64"
 structopt = "0.3.22"
-trillium = { path = "../trillium", version = "^0.1.0" }
-trillium-client = { path = "../client" }
-trillium-html-rewriter = { path = "../html-rewriter" }
-trillium-logger = { path = "../logger", version = "^0.1.0" }
-trillium-native-tls = { path = "../native-tls/" }
-trillium-proxy = { path = "../proxy" }
-trillium-router = { path = "../router", version = "^0.2.0"}
-trillium-rustls = { path = "../rustls" }
-trillium-smol = { path = "../smol", version = "^0.1.0" }
-trillium-static = { path = "../static", features = ["smol"] }
-trillium-websockets = { path = "../websockets/", features = ["json"] }
+trillium = "^0.1.0"
+trillium-native-tls = "0.1.0"
+trillium-rustls = "0.1.0"
+trillium-proxy = "0.1.0"
+trillium-router = "0.2.0"
+trillium-static = { version = "0.1.0", features = ["smol"] }
+trillium-websockets = { version = "0.1.1", features = ["json"] }
+trillium-smol = "0.1.2"
+trillium-client = "0.1.0"
+trillium-logger = "0.1.2"
+trillium-html-rewriter = "0.1.0"
 
 [dependencies.bat]
 version = "0.18.1"

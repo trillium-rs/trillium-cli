@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# env:
+#   RUSTFLAGS: -Dwarnings
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest] # [macOS-latest, ubuntu-latest, windows-latest]
+        rust: [nightly, stable]
+    steps:
+    - uses: actions/checkout@master
+    - name: Install ${{ matrix.rust }}
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        override: true
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+    - name: Async-std tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --all --examples --features async-std
+
+    - name: Tokio tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --all --examples --features tokio
+
+    - name: Smol tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --all --examples --features smol
+
+  check_fmt_and_docs:
+    name: Lints and Docs
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+        override: true
+
+    - uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        args: --all-features
+        
+    - name: Format
+      run: cargo fmt --all -- --check
+
+    - name: Docs
+      run: cargo doc --no-deps --features smol
