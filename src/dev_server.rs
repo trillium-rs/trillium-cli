@@ -251,7 +251,7 @@ mod proxy_app {
     use super::Event;
     use broadcaster::BroadcastChannel;
     use futures_lite::StreamExt;
-    use trillium::{Conn, State};
+    use trillium::{Conn, KnownHeaderName, State};
     use trillium_client::Client;
     use trillium_html_rewriter::{
         html::{element, html_content::ContentType, Settings},
@@ -278,7 +278,7 @@ mod proxy_app {
             .run((
                 Router::new()
                     .get("/_dev_server.js", |conn: Conn| async move {
-                        conn.with_header(("content-type", "application/javascript"))
+                        conn.with_header(KnownHeaderName::ContentType, "application/javascript")
                             .ok(include_str!("./dev_server.js"))
                     })
                     .get(

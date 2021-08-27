@@ -1,13 +1,13 @@
 use bat::{Input, PagingMode, PrettyPrinter};
 use blocking::Unblock;
-use futures_lite::io::BufReader;
 use std::{borrow::Cow, io::ErrorKind, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
-use trillium::http_types::{url, Body, Method, Url};
+use trillium::{Body, KnownHeaderName, Method};
 use trillium_client::{Conn, Connector, Error};
 use trillium_native_tls::NativeTlsConnector;
 use trillium_rustls::RustlsConnector;
 use trillium_smol::TcpConnector;
+use url::{self, Url};
 
 #[derive(StructOpt, Debug)]
 pub struct ClientCli {
@@ -61,7 +61,7 @@ impl ClientCli {
     async fn build<T: Connector>(&self) -> Conn<'_, T> {
         let mut conn = Conn::<T>::new(self.method, self.url.clone());
         for (name, value) in &self.headers {
-            conn.request_headers().append(&name[..], &value[..]);
+            conn.request_headers().append(name.clone(), value.clone());
         }
 
         if let Some(path) = &self.file {
@@ -73,17 +73,11 @@ impl ClientCli {
                 .await
                 .unwrap_or_else(|e| panic!("could not read file {:?} ({})", path, e));
 
-            conn.with_request_body(Body::from_reader(
-                BufReader::new(file),
-                Some(metadata.len()),
-            ))
+            conn.with_request_body(Body::new_streaming(file, Some(metadata.len())))
         } else if let Some(body) = &self.body {
-            conn.with_request_body(&**body)
+            conn.with_request_body(body.clone())
         } else if atty::isnt(atty::Stream::Stdin) {
-            conn.with_request_body(Body::from_reader(
-                BufReader::new(Unblock::new(std::io::stdin())),
-                None,
-            ))
+            conn.with_request_body(Body::new_streaming(Unblock::new(std::io::stdin()), None))
         } else {
             conn
         }
@@ -119,8 +113,8 @@ impl ClientCli {
                 let request_headers_as_string = format!("{:#?}", conn.request_headers());
                 let headers = conn.response_headers();
                 let response_headers_as_string = format!("{:#?}", headers);
-                let content_type = headers.get("content-type").map(|c| c.as_str());
-                let filename = match content_type.as_deref() {
+                let content_type = headers.get_str(KnownHeaderName::ContentType);
+                let filename = match content_type {
                     Some("application/json") => "body.json", // bat can't sniff json for some reason
                     _ => self.url.path(),
                 };
