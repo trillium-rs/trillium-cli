@@ -1,11 +1,14 @@
 [package]
 name = "trillium-cli"
-version = "0.0.10"
+version = "0.1.0"
 authors = ["Jacob Rothstein <hi@jbr.me>"]
-edition = "2018"
 description = "the trillium.rs cli"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+edition = "2021"
+repository = "https://github.com/trillium-rs/trillium-cli"
+keywords = ["trillium"]
+categories = ["web-programming::http-server", "web-programming"]
 
 [dependencies]
 ansi-to-html = "0.1.0"
