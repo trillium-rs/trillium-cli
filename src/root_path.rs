@@ -1,7 +1,7 @@
 use std::{
     env,
     fmt::{self, Debug, Display},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 #[derive(Clone)]
@@ -16,6 +16,7 @@ impl Default for RootPath {
         )
     }
 }
+
 impl std::ops::Deref for RootPath {
     type Target = PathBuf;
 
@@ -49,6 +50,12 @@ impl From<&std::ffi::OsStr> for RootPath {
 
 impl AsRef<PathBuf> for RootPath {
     fn as_ref(&self) -> &PathBuf {
+        &*self
+    }
+}
+
+impl AsRef<Path> for RootPath {
+    fn as_ref(&self) -> &Path {
         &*self
     }
 }

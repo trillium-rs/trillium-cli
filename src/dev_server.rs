@@ -260,7 +260,7 @@ mod proxy_app {
     use trillium_proxy::Proxy;
     use trillium_router::Router;
     use trillium_smol::{ClientConfig, TcpConnector};
-    use trillium_websockets::WebSocket;
+    use trillium_websockets::{WebSocket, WebSocketConn};
     type HttpClient = Client<TcpConnector>;
 
     pub fn run(proxy: String, rx: BroadcastChannel<Event>) {
@@ -285,10 +285,10 @@ mod proxy_app {
                         "/_dev_server.ws",
                         (
                             State::new(rx),
-                            WebSocket::new(|mut wsc| async move {
-                                let mut rx = wsc.take_state::<BroadcastChannel<Event>>().unwrap();
+                            WebSocket::new(|mut conn: WebSocketConn| async move {
+                                let mut rx = conn.take_state::<BroadcastChannel<Event>>().unwrap();
                                 while let Some(message) = rx.next().await {
-                                    if let Err(e) = wsc.send_json(&message).await {
+                                    if let Err(e) = conn.send_json(&message).await {
                                         log::error!("{:?}", e);
                                         return;
                                     }

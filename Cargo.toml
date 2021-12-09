@@ -14,24 +14,24 @@ async-fs = "1.5.0"
 async-global-executor = "2.0.2"
 async-io = "1.6.0"
 atty = "0.2.14"
-blocking = "1.0.2"
+blocking = "1.1.0"
 broadcaster = "1.0.0"
 env_logger = "0.9.0"
 futures-lite = "1.12.0"
 log = "0.4.14"
-serde = "1.0.129"
-serde_json = "1.0.66"
-structopt = "0.3.22"
-trillium = "0.2.0"
+serde = "1.0.130"
+serde_json = "1.0.72"
+structopt = "0.3.25"
+trillium = "0.2.2"
 trillium-native-tls = "0.1.0"
 trillium-rustls = "0.1.0"
 trillium-proxy = "0.2.0"
 trillium-router = "0.3.0"
-trillium-static = { version = "0.3.0", features = ["smol"] }
-trillium-websockets = { version = "0.3.0", features = ["json"] }
+trillium-static = { version = "0.4.0", features = ["smol"] }
+trillium-websockets = { version = "0.4.0", features = ["json"] }
 trillium-smol = "0.2.0"
 trillium-client = "0.2.0"
-trillium-logger = "0.2.0"
+trillium-logger = "0.4.0"
 trillium-html-rewriter = "0.2.0"
 url = "2.2.2"
 
@@ -49,9 +49,9 @@ features = [
 ]
 
 [target.'cfg(unix)'.dependencies]
-signal-hook = "0.3.9"
-libc = "0.2.101"
-nix = "0.22.1"
+signal-hook = "0.3.12"
+libc = "0.2.109"
+nix = "0.23.0"
 notify = "4.0.17"
 
 [lib]
