@@ -3,10 +3,10 @@ use blocking::Unblock;
 use std::{borrow::Cow, io::ErrorKind, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 use trillium::{Body, KnownHeaderName, Method};
-use trillium_client::{Conn, Connector, Error};
-use trillium_native_tls::NativeTlsConnector;
-use trillium_rustls::RustlsConnector;
-use trillium_smol::TcpConnector;
+use trillium_client::{Client, Conn, Error};
+use trillium_native_tls::NativeTlsConfig;
+use trillium_rustls::RustlsConfig;
+use trillium_smol::ClientConfig;
 use url::{self, Url};
 
 #[derive(StructOpt, Debug)]
@@ -58,8 +58,14 @@ pub struct ClientCli {
 }
 
 impl ClientCli {
-    async fn build<T: Connector>(&self) -> Conn<'_, T> {
-        let mut conn = Conn::<T>::new(self.method, self.url.clone());
+    async fn build(&self) -> Conn {
+        let client = match self.tls {
+            TlsType::None => Client::new(ClientConfig::default()),
+            TlsType::Rustls => Client::new(RustlsConfig::<ClientConfig>::default()),
+            TlsType::NativeTls => Client::new(NativeTlsConfig::<ClientConfig>::default()),
+        };
+
+        let mut conn = client.build_conn(self.method, self.url.clone());
         for (name, value) in &self.headers {
             conn.request_headers().append(name.clone(), value.clone());
         }
@@ -73,17 +79,17 @@ impl ClientCli {
                 .await
                 .unwrap_or_else(|e| panic!("could not read file {:?} ({})", path, e));
 
-            conn.with_request_body(Body::new_streaming(file, Some(metadata.len())))
+            conn.with_body(Body::new_streaming(file, Some(metadata.len())))
         } else if let Some(body) = &self.body {
-            conn.with_request_body(body.clone())
+            conn.with_body(body.clone())
         } else if atty::isnt(atty::Stream::Stdin) {
-            conn.with_request_body(Body::new_streaming(Unblock::new(std::io::stdin()), None))
+            conn.with_body(Body::new_streaming(Unblock::new(std::io::stdin()), None))
         } else {
             conn
         }
     }
 
-    fn run_with_connector<T: Connector>(self) {
+    pub fn run(self) {
         futures_lite::future::block_on(async move {
             env_logger::Builder::new()
                 .filter_level(match self.verbose {
@@ -93,9 +99,9 @@ impl ClientCli {
                 })
                 .init();
 
-            let mut conn = self.build::<T>().await;
+            let mut conn = self.build().await;
 
-            if let Err(e) = conn.send().await {
+            if let Err(e) = (&mut conn).await {
                 match e {
                     Error::Io(io) if io.kind() == ErrorKind::ConnectionRefused => {
                         log::error!("could not reach {}", self.url)
@@ -154,22 +160,6 @@ impl ClientCli {
                 .unwrap();
             }
         });
-    }
-
-    pub fn run(self) {
-        match self.tls {
-            TlsType::None => {
-                self.run_with_connector::<TcpConnector>();
-            }
-
-            TlsType::Rustls => {
-                self.run_with_connector::<RustlsConnector<TcpConnector>>();
-            }
-
-            TlsType::NativeTls => {
-                self.run_with_connector::<NativeTlsConnector<TcpConnector>>();
-            }
-        }
     }
 }
 

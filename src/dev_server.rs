@@ -4,7 +4,7 @@ use nix::{
     sys::signal::{self, Signal},
     unistd::Pid,
 };
-use notify::{RawEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use signal_hook::{
     consts::signal::{SIGHUP, SIGUSR1},
@@ -153,8 +153,8 @@ impl DevServer {
         }
 
         thread::spawn(move || {
-            let (t, r) = mpsc::channel::<RawEvent>();
-            let mut watcher = RecommendedWatcher::new_raw(t).unwrap();
+            let (t, r) = mpsc::channel();
+            let mut watcher = RecommendedWatcher::new(t, Default::default()).unwrap();
 
             if let Some(watches) = self.watch {
                 for watch in watches {
@@ -166,15 +166,15 @@ impl DevServer {
 
                     let watch = watch.canonicalize().unwrap();
                     log::info!("watching {:?}", &watch);
-                    watcher.watch(watch, RecursiveMode::Recursive).unwrap();
+                    watcher.watch(&watch, RecursiveMode::Recursive).unwrap();
                 }
             }
 
             log::info!("watching {:?}", &bin);
             watcher.watch(&bin, RecursiveMode::NonRecursive).unwrap();
 
-            while let Ok(m) = r.recv() {
-                if let Some(path) = m.path {
+            while let Ok(Ok(m)) = r.recv() {
+                for path in m.paths {
                     if let Ok(path) = path.canonicalize() {
                         if path == bin {
                             tx.send(Event::BinaryChanged).unwrap();
@@ -259,18 +259,16 @@ mod proxy_app {
     };
     use trillium_proxy::Proxy;
     use trillium_router::Router;
-    use trillium_smol::{ClientConfig, TcpConnector};
+    use trillium_smol::ClientConfig;
     use trillium_websockets::{WebSocket, WebSocketConn};
-    type HttpClient = Client<TcpConnector>;
 
     pub fn run(proxy: String, rx: BroadcastChannel<Event>) {
         static PORT: u16 = 8082;
-        let client = HttpClient::new()
-            .with_default_pool()
-            .with_config(ClientConfig {
-                nodelay: Some(true),
-                ..Default::default()
-            });
+        let client = Client::new(ClientConfig {
+            nodelay: Some(true),
+            ..Default::default()
+        })
+        .with_default_pool();
 
         trillium_smol::config()
             .without_signals()
@@ -296,7 +294,7 @@ mod proxy_app {
                             }),
                         ),
                     ),
-                Proxy::new(&*proxy).with_client(client),
+                Proxy::new(client, &*proxy),
                 HtmlRewriter::new(|| Settings {
                     element_content_handlers: vec![element!("body", |el| {
                         el.append(

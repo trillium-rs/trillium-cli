@@ -4,11 +4,10 @@ use std::{fmt::Debug, fs, io::Write, path::PathBuf};
 use structopt::StructOpt;
 use trillium_logger::Logger;
 use trillium_native_tls::NativeTlsAcceptor;
-use trillium_rustls::{RustlsAcceptor, RustlsConnector};
-use trillium_smol::TcpConnector;
+use trillium_proxy::Proxy;
+use trillium_rustls::{RustlsAcceptor, RustlsConfig};
+use trillium_smol::ClientConfig;
 use trillium_static::StaticFileHandler;
-
-type Proxy = trillium_proxy::Proxy<RustlsConnector<TcpConnector>>;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -115,13 +114,13 @@ impl StaticCli {
             }
 
             StaticCli {
-                rustls_cert: Some(x),
-                rustls_key: Some(y),
+                rustls_cert: Some(cert),
+                rustls_key: Some(key),
                 native_tls_identity: None,
                 ..
-            } => Some(RustlsAcceptor::from_pkcs8(
-                &fs::read(x).unwrap(),
-                &fs::read(y).unwrap(),
+            } => Some(RustlsAcceptor::from_single_cert(
+                &fs::read(cert).unwrap(),
+                &fs::read(key).unwrap(),
             )),
 
             StaticCli {
@@ -191,7 +190,12 @@ impl StaticCli {
 
         let server = (
             Logger::new(),
-            self.forward().map(Proxy::new),
+            self.forward().map(|url| {
+                Proxy::new(
+                    RustlsConfig::default().with_tcp_config(ClientConfig::default()),
+                    url,
+                )
+            }),
             static_file_handler,
         );
 
