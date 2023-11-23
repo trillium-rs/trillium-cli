@@ -1,18 +1,15 @@
 ```
-trillium-cli 0.0.10
+The trillium.rs cli
 
-USAGE:
-    trillium <SUBCOMMAND>
+Usage: trillium <COMMAND>
 
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+Commands:
+  serve       Static file server and reverse proxy
+  dev-server  Development server for trillium applications
+  client      Make http requests using the trillium client
+  help        Print this message or the help of the given subcommand(s)
 
-SUBCOMMANDS:
-    client        Make http requests using the trillium client
-    dev-server    Development server for trillium applications
-    help          Prints this message or the help of the given
-                  subcommand(s)
-    static        Atatic file server
-
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
 ```

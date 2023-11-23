@@ -1,4 +1,5 @@
 use broadcaster::BroadcastChannel;
+use clap::Parser;
 use log::LevelFilter;
 use nix::{
     sys::signal::{self, Signal},
@@ -20,33 +21,32 @@ use std::{
     thread,
     time::Duration,
 };
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub struct DevServer {
     // /// Local host or ip to listen on
-    // #[structopt(short = "o", long, env, default_value = "localhost")]
+    // #[arg(short = "o", long, env, default_value = "localhost")]
     // host: String,
 
     // /// Local port to listen on
-    // #[structopt(short, long, env, default_value = "8080")]
+    // #[arg(short, long, env, default_value = "8080")]
     // port: u16,
-    #[structopt(short, long, env, parse(from_os_str), default_value = "src")]
+    #[arg(short, long, env, default_value = "src")]
     watch: Option<Vec<PathBuf>>,
 
-    #[structopt(short, long, env, parse(from_os_str))]
+    #[arg(short, long, env)]
     bin: Option<PathBuf>,
 
-    #[structopt(short, long)]
+    #[arg(short, long)]
     cwd: Option<PathBuf>,
 
-    #[structopt(short, long)]
+    #[arg(short, long)]
     release: bool,
 
-    #[structopt(short, long)]
+    #[arg(short, long)]
     example: Option<String>,
 
-    #[structopt(short, long, default_value = "SIGTERM")]
+    #[arg(short, long, default_value = "SIGTERM")]
     signal: Signal,
 }
 

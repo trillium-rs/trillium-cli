@@ -1,9 +1,10 @@
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
 pub enum Cli {
-    /// Static file server
-    Static(crate::StaticCli),
+    /// Static file server and reverse proxy
+    Serve(crate::StaticCli),
 
     #[cfg(unix)]
     /// Development server for trillium applications
@@ -17,7 +18,7 @@ impl Cli {
     pub fn run(self) {
         use Cli::*;
         match self {
-            Static(s) => s.run(),
+            Serve(s) => s.run(),
             #[cfg(unix)]
             DevServer(d) => d.run(),
             Client(c) => c.run(),
