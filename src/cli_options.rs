@@ -1,8 +1,9 @@
 use clap::Parser;
 
 #[derive(Parser, Debug)]
+#[command(author, version, about)]
 pub enum Cli {
-    /// Static file server
+    /// Static file server and reverse proxy
     Serve(crate::StaticCli),
 
     #[cfg(unix)]
