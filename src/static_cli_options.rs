@@ -1,7 +1,6 @@
 use crate::RootPath;
-use log::LevelFilter;
+use clap::Parser;
 use std::{fmt::Debug, fs, io::Write, path::PathBuf};
-use structopt::StructOpt;
 use trillium_logger::Logger;
 use trillium_native_tls::NativeTlsAcceptor;
 use trillium_proxy::Proxy;
@@ -9,23 +8,20 @@ use trillium_rustls::{RustlsAcceptor, RustlsConfig};
 use trillium_smol::ClientConfig;
 use trillium_static::StaticFileHandler;
 
-#[derive(StructOpt, Debug)]
-#[structopt(
-    setting = structopt::clap::AppSettings::DeriveDisplayOrder
-)]
+#[derive(Parser, Debug)]
 pub struct StaticCli {
     /// Filesystem path to serve
     ///
     /// Defaults to the current working directory
-    #[structopt(parse(from_os_str), default_value)]
+    #[arg(default_value_t)]
     root: RootPath,
 
     /// Local host or ip to listen on
-    #[structopt(short = "o", long, env, default_value = "localhost")]
+    #[arg(short = 'o', long, env, default_value = "localhost")]
     host: String,
 
     /// Local port to listen on
-    #[structopt(short, long, env, default_value = "8080")]
+    #[arg(short, long, env, default_value = "8080")]
     port: u16,
 
     /// Path to a tls certificate for tide_rustls
@@ -35,7 +31,7 @@ pub struct StaticCli {
     ///
     /// Example: `--rustls_cert ./cert.pem --rustls_key ./key.pem`
     /// For development, try using mkcert
-    #[structopt(long, env, parse(from_os_str))]
+    #[arg(long, env)]
     rustls_cert: Option<PathBuf>,
 
     /// The path to a tls key file for tide_rustls
@@ -45,13 +41,13 @@ pub struct StaticCli {
     ///
     /// Example: `--rustls_cert ./cert.pem --rustls_key ./key.pem`
     /// For development, try using mkcert
-    #[structopt(long, env, parse(from_os_str))]
+    #[arg(long, env)]
     rustls_key: Option<PathBuf>,
 
-    #[structopt(long, env, parse(from_os_str))]
+    #[arg(long, env)]
     native_tls_identity: Option<PathBuf>,
 
-    #[structopt(long, env)]
+    #[arg(long, env)]
     native_tls_password: Option<String>,
 
     /// Host to forward (reverse proxy) not-found requests to
@@ -65,16 +61,14 @@ pub struct StaticCli {
     ///    `--forward https://localhost:8081`
     ///
     /// Note: http+unix:// schemes are not yet supported
-    #[structopt(short, long, env = "FORWARD")]
+    #[arg(short, long, env = "FORWARD")]
     forward: Option<String>,
 
-    #[structopt(short, long, env)]
+    #[arg(short, long, env)]
     index: Option<String>,
 
-    /// set the log level. add more flags for more verbosity
-    ///
-    #[structopt(short, long, parse(from_occurrences))]
-    verbose: u8,
+    #[command(flatten)]
+    verbose: clap_verbosity_flag::Verbosity,
 }
 
 impl StaticCli {
@@ -174,11 +168,7 @@ impl StaticCli {
 
     pub fn run(self) {
         env_logger::Builder::new()
-            .filter_level(match self.verbose {
-                0 => LevelFilter::Info,
-                1 => LevelFilter::Debug,
-                _ => LevelFilter::Trace,
-            })
+            .filter_level(self.verbose.log_level_filter())
             .format(|buf, record| writeln!(buf, "{}", record.args()))
             .init();
 

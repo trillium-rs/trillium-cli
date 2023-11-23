@@ -1,7 +1,7 @@
 use bat::{Input, PagingMode, PrettyPrinter};
 use blocking::Unblock;
+use clap::Parser;
 use std::{borrow::Cow, io::ErrorKind, path::PathBuf, str::FromStr};
-use structopt::StructOpt;
 use trillium::{Body, KnownHeaderName, Method};
 use trillium_client::{Client, Conn, Error};
 use trillium_native_tls::NativeTlsConfig;
@@ -9,12 +9,12 @@ use trillium_rustls::RustlsConfig;
 use trillium_smol::ClientConfig;
 use url::{self, Url};
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub struct ClientCli {
-    #[structopt(parse(try_from_str = parse_method_case_insensitive))]
+    #[arg(value_parser = parse_method_case_insensitive)]
     method: Method,
 
-    #[structopt(parse(try_from_str = parse_url))]
+    #[arg(value_parser = parse_url)]
     url: Url,
 
     /// provide a file system path to a file to use as the request body
@@ -26,35 +26,35 @@ pub struct ClientCli {
     /// trillium client post http://httpbin.org/anything -f ./body.json
     /// trillium client post http://httpbin.org/anything < ./body.json
     /// cat ./body.json | trillium client post http://httpbin.org/anything
-    #[structopt(short, long, parse(from_os_str), verbatim_doc_comment)]
+    #[arg(short, long, verbatim_doc_comment)]
     file: Option<PathBuf>,
 
     /// provide a request body on the command line
     ///
     /// example:
     /// trillium client post http://httpbin.org/post -b '{"hello": "world"}'
-    #[structopt(short, long, verbatim_doc_comment)]
+    #[arg(short, long, verbatim_doc_comment)]
     body: Option<String>,
 
     /// provide headers in the form -h KEY1=VALUE1 KEY2=VALUE2
     ///
     /// example:
-    /// trillium client get http://httpbin.org/headers -h Accept=application/json Authorization="Basic u:p"
-    #[structopt(short, long, parse(try_from_str = parse_header), verbatim_doc_comment)]
+    /// trillium client get http://httpbin.org/headers -H Accept=application/json Authorization="Basic u:p"
+    #[arg(short = 'H', long, value_parser = parse_header, verbatim_doc_comment)]
     headers: Vec<(String, String)>,
 
     /// tls implementation. options: rustls, native-tls, none
     ///
     /// requests to https:// urls with `none` will fail
-    #[structopt(short, long, default_value = "rustls", verbatim_doc_comment)]
+    #[arg(short, long, default_value = "rustls", verbatim_doc_comment)]
     tls: TlsType,
 
     /// set the log level. add more flags for more verbosity
     ///
     /// example:
     /// trillium client get https://www.google.com -vvv # `trace` verbosity level
-    #[structopt(short, long, parse(from_occurrences))]
-    verbose: u64,
+    #[command(flatten)]
+    verbose: clap_verbosity_flag::Verbosity,
 }
 
 impl ClientCli {
@@ -92,11 +92,7 @@ impl ClientCli {
     pub fn run(self) {
         futures_lite::future::block_on(async move {
             env_logger::Builder::new()
-                .filter_level(match self.verbose {
-                    0 => log::LevelFilter::Info,
-                    1 => log::LevelFilter::Debug,
-                    _ => log::LevelFilter::Trace,
-                })
+                .filter_level(self.verbose.log_level_filter())
                 .init();
 
             let mut conn = self.build().await;
@@ -163,7 +159,7 @@ impl ClientCli {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(clap::ValueEnum, Debug, Eq, PartialEq, Clone)]
 enum TlsType {
     None,
     Rustls,
