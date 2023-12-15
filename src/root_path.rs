@@ -50,13 +50,13 @@ impl From<&std::ffi::OsStr> for RootPath {
 
 impl AsRef<PathBuf> for RootPath {
     fn as_ref(&self) -> &PathBuf {
-        &*self
+        self
     }
 }
 
 impl AsRef<Path> for RootPath {
     fn as_ref(&self) -> &Path {
-        &*self
+        self
     }
 }
 

@@ -67,7 +67,7 @@ impl DevServer {
         } else {
             let metadata = Command::new("cargo")
                 .current_dir(self.cwd.clone().unwrap())
-                .args(&["metadata", "--format-version", "1"])
+                .args(["metadata", "--format-version", "1"])
                 .output()
                 .unwrap();
 
@@ -140,7 +140,7 @@ impl DevServer {
         {
             let tx = tx.clone();
             thread::spawn(move || {
-                let mut signals = Signals::new(&[SIGHUP, SIGUSR1]).unwrap();
+                let mut signals = Signals::new([SIGHUP, SIGUSR1]).unwrap();
 
                 loop {
                     for signal in signals.pending() {
@@ -224,9 +224,9 @@ impl DevServer {
                                     io::stderr().write_all(&ok.stderr).unwrap();
                                     async_io::block_on(
                                         broadcaster.send(&Event::CompileError {
-                                            error: ansi_to_html::convert_escaped(
-                                                &String::from_utf8_lossy(&ok.stderr),
-                                            )
+                                            error: ansi_to_html::convert(&String::from_utf8_lossy(
+                                                &ok.stderr,
+                                            ))
                                             .unwrap(),
                                         }),
                                     )
