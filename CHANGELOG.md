@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/trillium-rs/trillium-cli/compare/v0.1.0...v0.1.1) - 2023-12-15
+
+### Other
+- Merge pull request [#10](https://github.com/trillium-rs/trillium-cli/pull/10) from trillium-rs/deps
+- update dependencies
+- release
+
 ## [0.1.0](https://github.com/trillium-rs/trillium-cli/releases/tag/v0.1.0) - 2023-11-23
 
 ### Fixed
