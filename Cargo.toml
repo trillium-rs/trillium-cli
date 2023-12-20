@@ -32,7 +32,7 @@ trillium-router = "0.3.5"
 trillium-static = { version = "0.4.0", features = ["smol"] }
 trillium-websockets = { version = "0.5.2", features = ["json"] }
 trillium-smol = "0.3.1"
-trillium-client = "0.4.7"
+trillium-client = "0.4.8"
 trillium-logger = "0.4.3"
 trillium-html-rewriter = "0.3.0"
 url = "2.5.0"
