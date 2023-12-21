@@ -12,6 +12,9 @@ pub enum Cli {
 
     /// Make http requests using the trillium client
     Client(crate::ClientCli),
+
+    /// Run a http proxy
+    Proxy(crate::ProxyCli),
 }
 
 impl Cli {
@@ -22,6 +25,7 @@ impl Cli {
             #[cfg(unix)]
             DevServer(d) => d.run(),
             Client(c) => c.run(),
+            Proxy(p) => p.run(),
         }
     }
 }
