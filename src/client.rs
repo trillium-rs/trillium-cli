@@ -1,14 +1,19 @@
-use bat::{Input, PagingMode, PrettyPrinter};
 use blocking::Unblock;
 use clap::Parser;
-use std::{borrow::Cow, io::ErrorKind, path::PathBuf, str::FromStr};
-use trillium::{Body, KnownHeaderName, Method};
+use clap_verbosity_flag::Verbosity;
+use colored::*;
+use log::Level;
+use std::{
+    io::{ErrorKind, IsTerminal},
+    path::PathBuf,
+    str::FromStr,
+};
+use trillium::{Body, Headers, Method, Status};
 use trillium_client::{Client, Conn, Error};
 use trillium_native_tls::NativeTlsConfig;
 use trillium_rustls::RustlsConfig;
 use trillium_smol::ClientConfig;
 use url::{self, Url};
-
 #[derive(Parser, Debug)]
 pub struct ClientCli {
     #[arg(value_parser = parse_method_case_insensitive)]
@@ -54,21 +59,16 @@ pub struct ClientCli {
     /// example:
     /// trillium client get https://www.google.com -vvv # `trace` verbosity level
     #[command(flatten)]
-    verbose: clap_verbosity_flag::Verbosity,
+    verbose: Verbosity,
 }
 
 impl ClientCli {
     async fn build(&self) -> Conn {
-        let client = match self.tls {
-            TlsType::None => Client::new(ClientConfig::default()),
-            TlsType::Rustls => Client::new(RustlsConfig::<ClientConfig>::default()),
-            TlsType::NativeTls => Client::new(NativeTlsConfig::<ClientConfig>::default()),
-        };
-
+        let client = Client::from(self.tls);
+        log::trace!("{}", self.url.as_str());
         let mut conn = client.build_conn(self.method, self.url.clone());
-        for (name, value) in &self.headers {
-            conn.request_headers().append(name.clone(), value.clone());
-        }
+
+        conn.request_headers().extend(self.headers.clone());
 
         if let Some(path) = &self.file {
             let metadata = async_fs::metadata(path)
@@ -79,14 +79,14 @@ impl ClientCli {
                 .await
                 .unwrap_or_else(|e| panic!("could not read file {:?} ({})", path, e));
 
-            conn.with_body(Body::new_streaming(file, Some(metadata.len())))
+            conn.set_request_body(Body::new_streaming(file, Some(metadata.len())))
         } else if let Some(body) = &self.body {
-            conn.with_body(body.clone())
+            conn.set_request_body(body.clone())
         } else if atty::isnt(atty::Stream::Stdin) {
-            conn.with_body(Body::new_streaming(Unblock::new(std::io::stdin()), None))
-        } else {
-            conn
+            conn.set_request_body(Body::new_streaming(Unblock::new(std::io::stdin()), None))
         }
+
+        conn
     }
 
     pub fn run(self) {
@@ -109,44 +109,38 @@ impl ClientCli {
                 return;
             }
 
-            if atty::is(atty::Stream::Stdout) {
-                let body = conn.response_body().read_string().await.unwrap();
+            if std::io::stdout().is_terminal() {
+                let status = conn.status().unwrap_or(Status::NotFound);
+                println!(
+                    "{}: {}",
+                    "Status".italic(),
+                    if status.is_client_error() {
+                        status.to_string().yellow()
+                    } else if status.is_server_error() {
+                        status.to_string().bright_red()
+                    } else {
+                        status.to_string().bright_green()
+                    }
+                );
 
-                let request_headers_as_string = format!("{:#?}", conn.request_headers());
-                let headers = conn.response_headers();
-                let response_headers_as_string = format!("{:#?}", headers);
-                let content_type = headers.get_str(KnownHeaderName::ContentType);
-                let filename = match content_type {
-                    Some("application/json") => "body.json", // bat can't sniff json for some reason
-                    _ => self.url.path(),
-                };
+                match self.verbose.log_level() {
+                    Some(level) if level >= Level::Warn => {
+                        println!("\n{}", "Request Headers".bold().underline());
+                        print_headers(conn.request_headers());
+                        println!("\n{}", "Response Headers".bold().underline());
+                        print_headers(conn.response_headers());
 
-                let status_string = conn.status().unwrap().to_string();
+                        println!("\n{}", "Body".bold().underline());
+                    }
+                    _ => {}
+                }
 
-                PrettyPrinter::new()
-                    .paging_mode(PagingMode::QuitIfOneScreen)
-                    .header(true)
-                    .grid(true)
-                    .inputs(vec![
-                        Input::from_bytes(request_headers_as_string.as_bytes())
-                            .name("request_headers.rs")
-                            .title("request headers"),
-                        Input::from_bytes(response_headers_as_string.as_bytes())
-                            .name("response_headers.rs")
-                            .title("response headers"),
-                        Input::from_bytes(status_string.as_bytes())
-                            .name("status")
-                            .title("status"),
-                        Input::from_bytes(body.as_bytes()).name(filename).title(
-                            if let Some(content_type) = content_type {
-                                Cow::Owned(format!("response body ({})", content_type))
-                            } else {
-                                Cow::Borrowed("response body")
-                            },
-                        ),
-                    ])
-                    .print()
-                    .unwrap();
+                futures_lite::io::copy(
+                    &mut conn.response_body(),
+                    &mut Unblock::new(std::io::stdout()),
+                )
+                .await
+                .unwrap();
             } else {
                 futures_lite::io::copy(
                     &mut conn.response_body(),
@@ -159,11 +153,29 @@ impl ClientCli {
     }
 }
 
-#[derive(clap::ValueEnum, Debug, Eq, PartialEq, Clone)]
-enum TlsType {
+fn print_headers(headers: &Headers) {
+    for (name, values) in headers {
+        for value in values {
+            println!("{}: {}", name.as_ref().italic().bright_blue(), value);
+        }
+    }
+}
+
+#[derive(clap::ValueEnum, Debug, Eq, PartialEq, Clone, Copy)]
+pub enum TlsType {
     None,
     Rustls,
-    NativeTls,
+    Native,
+}
+
+impl From<TlsType> for Client {
+    fn from(value: TlsType) -> Self {
+        match value {
+            TlsType::None => Client::new(ClientConfig::default()),
+            TlsType::Rustls => Client::new(RustlsConfig::<ClientConfig>::default()),
+            TlsType::Native => Client::new(NativeTlsConfig::<ClientConfig>::default()),
+        }
+    }
 }
 
 fn parse_method_case_insensitive(src: &str) -> Result<Method, String> {
@@ -172,7 +184,7 @@ fn parse_method_case_insensitive(src: &str) -> Result<Method, String> {
         .map_err(|_| format!("unrecognized method {}", src))
 }
 
-fn parse_url(src: &str) -> Result<Url, url::ParseError> {
+pub fn parse_url(src: &str) -> Result<Url, url::ParseError> {
     if src.starts_with("http") {
         src.parse()
     } else {
@@ -187,7 +199,7 @@ impl FromStr for TlsType {
         match &*s.to_ascii_lowercase() {
             "none" => Ok(Self::None),
             "rustls" => Ok(Self::Rustls),
-            "native" | "native-tls" => Ok(Self::NativeTls),
+            "native" | "native-tls" => Ok(Self::Native),
             _ => Err(format!("unrecognized tls {}", s)),
         }
     }

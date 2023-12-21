@@ -22,27 +22,23 @@ broadcaster = "1.0.0"
 env_logger = "0.10.1"
 futures-lite = "2.1.0"
 log = "0.4.20"
-serde = "1.0.193"
+serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.108"
 trillium = "0.2.11"
 trillium-native-tls = "0.3.0"
 trillium-rustls = "0.4.0"
-trillium-proxy = "0.4.2"
+trillium-proxy = "0.4.3"
 trillium-router = "0.3.5"
 trillium-static = { version = "0.4.0", features = ["smol"] }
 trillium-websockets = { version = "0.5.2", features = ["json"] }
 trillium-smol = "0.3.1"
-trillium-client = "0.4.8"
+trillium-client = "0.4.9"
 trillium-logger = "0.4.3"
 trillium-html-rewriter = "0.3.0"
 url = "2.5.0"
 clap = { version = "4.4.11", features = ["derive", "env"] }
 clap-verbosity-flag = "2.1.1"
-
-[dependencies.bat]
-features = ["minimal-application"]
-version = "0.24.0"
-default-features = false
+colored = "2.1.0"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3.17"
