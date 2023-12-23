@@ -16,7 +16,6 @@ async-channel = "2.1.1"
 async-fs = "2.1.0"
 async-global-executor = "2.4.1"
 async-io = "2.2.2"
-atty = "0.2.14"
 blocking = "1.5.1"
 broadcaster = "1.0.0"
 env_logger = "0.10.1"
@@ -32,13 +31,16 @@ trillium-router = "0.3.5"
 trillium-static = { version = "0.4.0", features = ["smol"] }
 trillium-websockets = { version = "0.5.2", features = ["json"] }
 trillium-smol = "0.3.1"
-trillium-client = "0.4.9"
+trillium-client = { version = "0.4.9", features = ["json"] }
 trillium-logger = "0.4.3"
 trillium-html-rewriter = "0.3.0"
 url = "2.5.0"
 clap = { version = "4.4.11", features = ["derive", "env"] }
 clap-verbosity-flag = "2.1.1"
 colored = "2.1.0"
+colored_json = "4.1.0"
+mime = "0.3.17"
+size = "0.4.1"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3.17"

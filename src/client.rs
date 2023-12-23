@@ -14,6 +14,7 @@ use trillium_native_tls::NativeTlsConfig;
 use trillium_rustls::RustlsConfig;
 use trillium_smol::ClientConfig;
 use url::{self, Url};
+
 #[derive(Parser, Debug)]
 pub struct ClientCli {
     #[arg(value_parser = parse_method_case_insensitive)]
@@ -33,6 +34,10 @@ pub struct ClientCli {
     /// cat ./body.json | trillium client post http://httpbin.org/anything
     #[arg(short, long, verbatim_doc_comment)]
     file: Option<PathBuf>,
+
+    /// write the body to a file
+    #[arg(short, long, verbatim_doc_comment)]
+    output_file: Option<Option<PathBuf>>,
 
     /// provide a request body on the command line
     ///
@@ -71,22 +76,77 @@ impl ClientCli {
         conn.request_headers().extend(self.headers.clone());
 
         if let Some(path) = &self.file {
-            let metadata = async_fs::metadata(path)
-                .await
-                .unwrap_or_else(|e| panic!("could not read file {:?} ({})", path, e));
-
             let file = async_fs::File::open(path)
                 .await
                 .unwrap_or_else(|e| panic!("could not read file {:?} ({})", path, e));
 
+            let metadata = file.metadata().await.unwrap();
+
             conn.set_request_body(Body::new_streaming(file, Some(metadata.len())))
         } else if let Some(body) = &self.body {
             conn.set_request_body(body.clone())
-        } else if atty::isnt(atty::Stream::Stdin) {
+        } else if !std::io::stdin().is_terminal() {
             conn.set_request_body(Body::new_streaming(Unblock::new(std::io::stdin()), None))
         }
 
         conn
+    }
+
+    async fn output_body(&self, conn: &mut Conn) {
+        if let Some(file) = &self.output_file {
+            let filename = file
+                .clone()
+                .unwrap_or_else(|| conn.url().path_segments().unwrap().last().unwrap().into());
+            if filename.to_str().map_or(true, |f| f.is_empty()) {
+                eprintln!("specify a filename for this url");
+                std::process::exit(-1);
+            }
+            let bytes_written = futures_lite::io::copy(
+                &mut conn.response_body(),
+                async_fs::File::create(&filename).await.unwrap(),
+            )
+            .await
+            .unwrap();
+            if matches!(self.verbose.log_level(), Some(level) if level >= Level::Warn) {
+                println!(
+                    "Wrote {} to {}",
+                    bytes(bytes_written).italic().bright_blue(),
+                    filename.to_string_lossy().italic()
+                );
+            }
+        } else {
+            let mime: Option<mime::Mime> = conn
+                .response_headers()
+                .get_str(trillium_client::KnownHeaderName::ContentType)
+                .and_then(|ct| ct.parse().ok());
+            let suffix_or_subtype =
+                mime.map(|m| m.suffix().unwrap_or_else(|| m.subtype()).to_string());
+
+            match suffix_or_subtype.as_deref() {
+                Some("json") => {
+                    let body = conn.response_json::<serde_json::Value>().await.unwrap();
+                    if std::io::stdout().is_terminal() {
+                        println!("{}", colored_json::to_colored_json_auto(&body).unwrap());
+                    } else {
+                        println!("{}", serde_json::to_string_pretty(&body).unwrap());
+                    }
+                }
+
+                _ => {
+                    match futures_lite::io::copy(
+                        &mut conn.response_body(),
+                        &mut Unblock::new(std::io::stdout()),
+                    )
+                    .await
+                    {
+                        Err(e) if e.kind() == std::io::ErrorKind::WriteZero => {}
+                        other => {
+                            other.unwrap();
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub fn run(self) {
@@ -111,20 +171,38 @@ impl ClientCli {
 
             if std::io::stdout().is_terminal() {
                 let status = conn.status().unwrap_or(Status::NotFound);
-                println!(
-                    "{}: {}",
-                    "Status".italic(),
-                    if status.is_client_error() {
-                        status.to_string().yellow()
-                    } else if status.is_server_error() {
-                        status.to_string().bright_red()
-                    } else {
-                        status.to_string().bright_green()
-                    }
-                );
+                if status != Status::Ok
+                    || matches!(self.verbose.log_level(), Some(level) if level >= Level::Warn)
+                {
+                    println!(
+                        "{}: {}",
+                        "Status".italic().bright_blue(),
+                        if status.is_client_error() {
+                            status.to_string().yellow()
+                        } else if status.is_server_error() {
+                            status.to_string().bright_red()
+                        } else {
+                            status.to_string().green()
+                        }
+                        .bold()
+                    );
+                }
 
                 match self.verbose.log_level() {
                     Some(level) if level >= Level::Warn => {
+                        println!("{}: {}", "Url".italic().bright_blue(), conn.url().as_str());
+                        println!(
+                            "{}: {}",
+                            "Method".italic().bright_blue(),
+                            conn.method().as_str().bold()
+                        );
+                        // if let Some(peer_addr) = conn.peer_addr() {
+                        //     println!(
+                        //         "{}: {}",
+                        //         "Peer Address".italic().bright_blue(),
+                        //         peer_addr.to_string()
+                        //     );
+                        // }
                         println!("\n{}", "Request Headers".bold().underline());
                         print_headers(conn.request_headers());
                         println!("\n{}", "Response Headers".bold().underline());
@@ -134,21 +212,9 @@ impl ClientCli {
                     }
                     _ => {}
                 }
-
-                futures_lite::io::copy(
-                    &mut conn.response_body(),
-                    &mut Unblock::new(std::io::stdout()),
-                )
-                .await
-                .unwrap();
-            } else {
-                futures_lite::io::copy(
-                    &mut conn.response_body(),
-                    &mut Unblock::new(std::io::stdout()),
-                )
-                .await
-                .unwrap();
             }
+
+            self.output_body(&mut conn).await
         });
     }
 }
@@ -210,4 +276,11 @@ fn parse_header(s: &str) -> Result<(String, String), String> {
         .find('=')
         .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{}`", s))?;
     Ok((String::from(&s[..pos]), String::from(&s[pos + 1..])))
+}
+
+fn bytes(bytes: u64) -> String {
+    size::Size::from_bytes(bytes)
+        .format()
+        .with_base(size::Base::Base10)
+        .to_string()
 }
