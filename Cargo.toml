@@ -29,7 +29,7 @@ trillium-rustls = "0.4.0"
 trillium-proxy = "0.4.3"
 trillium-router = "0.3.5"
 trillium-static = { version = "0.4.0", features = ["smol"] }
-trillium-websockets = { version = "0.5.2", features = ["json"] }
+trillium-websockets = { version = "0.6.0", features = ["json"] }
 trillium-smol = "0.3.1"
 trillium-client = { version = "0.4.9", features = ["json"] }
 trillium-logger = "0.4.3"

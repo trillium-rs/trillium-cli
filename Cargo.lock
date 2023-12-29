@@ -274,9 +274,9 @@ dependencies = [
 
 [[package]]
 name = "async-tungstenite"
-version = "0.21.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6d2c69d237cf761215175f390021344f5530101cca8164d69878b8a1779e80c"
+checksum = "3609af4bbf701ddaf1f6bb4e6257dff4ff8932327d0e685d3f653724c258b1ac"
 dependencies = [
  "futures-io",
  "futures-util",
@@ -984,9 +984,9 @@ checksum = "d77f7ec81a6d05a3abb01ab6eb7590f6083d08449fe5a1c8b1e620283546ccb7"
 
 [[package]]
 name = "http"
-version = "0.2.11"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8947b1a6fad4393052c7ba1f4cd97bed3e953a95c79c92ad9b051a04611d9fbb"
+checksum = "b32afd38673a8016f7c9ae69e5af41a58f81b1d31689040f2f1959594ce194ea"
 dependencies = [
  "bytes",
  "fnv",
@@ -2537,29 +2537,31 @@ dependencies = [
 
 [[package]]
 name = "trillium-websockets"
-version = "0.5.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d2c01f0beb9d5cc45da11312b69f2e4afe326a6c065a20587b6fa7988a1f5c1"
+checksum = "a1478d8c38e772ec9a53f7708d2aed0d54ccc8930e46bf2d42b5fa0454cf30ea"
 dependencies = [
  "async-tungstenite",
  "base64",
- "fastrand 1.9.0",
- "futures-lite 1.13.0",
+ "fastrand 2.0.1",
+ "futures-lite 2.1.0",
  "futures-util",
  "log",
+ "pin-project-lite",
  "serde",
  "serde_json",
  "sha-1",
  "stopper",
+ "thiserror",
  "trillium",
  "trillium-http",
 ]
 
 [[package]]
 name = "tungstenite"
-version = "0.19.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15fba1a6d6bb030745759a9a2a588bfe8490fc8b4751a277db3a0be1c9ebbf67"
+checksum = "9ef1a641ea34f399a848dea702823bbecfb4c486f911735368f1f137cb8257e1"
 dependencies = [
  "byteorder",
  "bytes",
