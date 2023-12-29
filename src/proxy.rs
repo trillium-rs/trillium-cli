@@ -1,24 +1,37 @@
 use crate::client::{parse_url, TlsType};
-
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use std::{fmt::Debug, fs, path::PathBuf};
+use trillium::{Conn, Method, Status};
+use trillium_client::Client;
 use trillium_logger::Logger;
 use trillium_native_tls::NativeTlsAcceptor;
-use trillium_proxy::Proxy;
+use trillium_proxy::{
+    upstream::{
+        ConnectionCounting, ForwardProxy, IntoUpstreamSelector, RandomSelector, RoundRobin,
+        UpstreamSelector,
+    },
+    ForwardProxyConnect, Proxy,
+};
 use trillium_rustls::RustlsAcceptor;
-
+use trillium_smol::ClientConfig;
 use url::Url;
+
+#[derive(Clone, Copy, Debug, ValueEnum, Default, PartialEq, Eq)]
+enum UpstreamSelectorStrategy {
+    #[default]
+    RoundRobin,
+    ConnectionCounting,
+    Random,
+    Forward,
+}
 
 #[derive(Parser, Debug)]
 pub struct ProxyCli {
-    /// Host to forward (reverse proxy) requests to
-    ///
-    /// This forwards any request that would otherwise be a 404 Not
-    /// Found to the specified listener spec.
-    ///
-    /// Note: http+unix:// schemes are not yet supported
-    #[arg(value_parser = parse_url)]
-    upstream: Url,
+    #[arg(env, value_parser = parse_url)]
+    upstream: Vec<Url>,
+
+    #[arg(short, long, env, default_value_t, value_enum)]
+    strategy: UpstreamSelectorStrategy,
 
     /// Local host or ip to listen on
     #[arg(short = 'o', long, env, default_value = "localhost")]
@@ -139,22 +152,69 @@ impl ProxyCli {
         }
     }
 
+    pub fn build_upstream(&self) -> Box<dyn UpstreamSelector> {
+        if self.strategy == UpstreamSelectorStrategy::Forward {
+            if self.upstream.is_empty() {
+                panic!("forward proxy does not take upstreams");
+            } else {
+                println!("Running in forward proxy mode");
+            }
+        } else if self.upstream.is_empty() {
+            panic!("upstream required unless --strategy forward is provided");
+        } else if self.upstream.len() == 1 {
+            let upstream = self.upstream[0].clone().into_upstream();
+            println!("Proxying to {upstream}");
+            return upstream.boxed();
+        } else {
+            println!(
+                "Forwarding to {} with strategy {}",
+                self.upstream
+                    .iter()
+                    .map(|u| u.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                self.strategy.to_possible_value().unwrap().get_name()
+            );
+        }
+
+        match self.strategy {
+            UpstreamSelectorStrategy::RoundRobin => RoundRobin::new(self.upstream.clone()).boxed(),
+            UpstreamSelectorStrategy::ConnectionCounting => {
+                ConnectionCounting::new(self.upstream.clone()).boxed()
+            }
+            UpstreamSelectorStrategy::Random => RandomSelector::new(self.upstream.clone()).boxed(),
+            UpstreamSelectorStrategy::Forward => ForwardProxy.boxed(),
+        }
+    }
+
     pub fn run(self) {
         env_logger::Builder::new()
             .filter_level(self.verbose.log_level_filter())
             .init();
 
-        if self.client_tls == TlsType::None && self.upstream.scheme() == "https" {
-            eprintln!("cannot use tls type none with an upstream scheme of https");
-            std::process::exit(-1);
-        }
-        println!("Proxying to {}", &self.upstream);
-
         let server = (
             Logger::new(),
-            Proxy::new(self.client_tls, self.upstream.clone())
-                .with_via_pseudonym("trillium-proxy")
-                .proxy_not_found(),
+            if self.strategy == UpstreamSelectorStrategy::Forward {
+                Some((
+                    ForwardProxyConnect::new(ClientConfig::default()),
+                    |conn: Conn| async move {
+                        if conn.status() == Some(Status::Ok) && conn.method() == Method::Connect {
+                            conn.halt()
+                        } else {
+                            conn
+                        }
+                    },
+                ))
+            } else {
+                None
+            },
+            Proxy::new(
+                Client::from(self.client_tls).with_default_pool(),
+                self.build_upstream(),
+            )
+            .with_via_pseudonym("trillium-proxy")
+            .with_websocket_upgrades()
+            .proxy_not_found(),
         );
 
         let config = trillium_smol::config()
