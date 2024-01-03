@@ -127,18 +127,6 @@ dependencies = [
 
 [[package]]
 name = "async-fs"
-version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "279cf904654eeebfa37ac9bb1598880884924aab82e290aa65c9e77a0e142e06"
-dependencies = [
- "async-lock 2.8.0",
- "autocfg",
- "blocking",
- "futures-lite 1.13.0",
-]
-
-[[package]]
-name = "async-fs"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd1f344136bad34df1f83a47f3fd7f2ab85d75cb8a940af4ccf6d482a84ea01b"
@@ -697,9 +685,9 @@ dependencies = [
 
 [[package]]
 name = "etag"
-version = "3.0.0"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aec9f8918ec91bd35f3068e33da01b72a295ac8a7baacb0290b56ffeeec9d88f"
+checksum = "4b3d0661a2ccddc26cba0b834e9b717959ed6fdd76c7129ee159c170a875bf44"
 dependencies = [
  "str-buf",
  "xxhash-rust",
@@ -1700,9 +1688,9 @@ checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
 
 [[package]]
 name = "relative-path"
-version = "1.9.0"
+version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c707298afce11da2efef2f600116fa93ffa7a032b5d7b628aa17711ec81383ca"
+checksum = "e898588f33fdd5b9420719948f9f2a32c922a246964576f71ba7f24f80610fbc"
 
 [[package]]
 name = "ring"
@@ -2135,9 +2123,9 @@ dependencies = [
 
 [[package]]
 name = "str-buf"
-version = "2.0.5"
+version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0873cb29201126440dcc78d0b1f5a13d917e78831778429a7920ca9c7f3dae1e"
+checksum = "e75b72ee54e2f93c3ea1354066162be893ee5e25773ab743de3e088cecbb4f31"
 
 [[package]]
 name = "strsim"
@@ -2295,7 +2283,7 @@ version = "0.2.1"
 dependencies = [
  "ansi-to-html",
  "async-channel 2.1.1",
- "async-fs 2.1.0",
+ "async-fs",
  "async-global-executor",
  "async-io 2.2.2",
  "blocking",
@@ -2534,14 +2522,14 @@ dependencies = [
 
 [[package]]
 name = "trillium-static"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30f8fdac497588f1217959fa518fa21e9e569b6480485ef966f3e28826af24e2"
+checksum = "561d5722c0f8aa5b52c5389d665f8fbccf0028350cbe588bc190d21b5c26d0e8"
 dependencies = [
- "async-fs 1.6.0",
+ "async-fs",
  "cfg-if 1.0.0",
  "etag",
- "futures-lite 1.13.0",
+ "futures-lite 2.1.0",
  "httpdate",
  "log",
  "mime_guess",
