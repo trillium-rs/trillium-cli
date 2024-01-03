@@ -28,7 +28,7 @@ trillium-native-tls = "0.3.0"
 trillium-rustls = "0.4.0"
 trillium-proxy = "0.5.0"
 trillium-router = "0.3.6"
-trillium-static = { version = "0.4.0", features = ["smol"] }
+trillium-static = { version = "0.4.1", features = ["smol"] }
 trillium-websockets = { version = "0.6.0", features = ["json"] }
 trillium-smol = "0.3.1"
 trillium-client = { version = "0.4.9", features = ["json"] }
