@@ -701,17 +701,6 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "event-listener"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d93877bcde0eb80ca09131a08d23f0a5c18a620b01db137dba666d18cd9b30c2"
-dependencies = [
- "concurrent-queue",
- "parking",
- "pin-project-lite",
-]
-
-[[package]]
-name = "event-listener"
 version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84f2cdcf274580f2d63697192d744727b3198894b1bf02923643bf59e2c26712"
@@ -2426,9 +2415,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-native-tls"
-version = "0.3.0"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b334348806f525ccfd1b5162c832926391094901c7ac4a36bd54f034ba7bc775"
+checksum = "ef7b00ecaf4271b04bcd96ea6667e59a6f14d09a9fac67570a6eed004db7f891"
 dependencies = [
  "async-native-tls",
  "native-tls",
@@ -2485,13 +2474,13 @@ dependencies = [
 
 [[package]]
 name = "trillium-server-common"
-version = "0.4.5"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72bc41ffb1eb97c76f95b9684ce10fce6ba710d0322bd826b0480f00f3ddc98d"
+checksum = "9b4f157b81051bb2630b6750d6583f648f545d241ef4b939781f4ad6a45fe700"
 dependencies = [
  "async-trait",
  "async_cell",
- "event-listener 3.1.0",
+ "event-listener 4.0.1",
  "futures-lite 2.1.0",
  "log",
  "pin-project-lite",
