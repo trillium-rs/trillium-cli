@@ -2390,12 +2390,11 @@ dependencies = [
 
 [[package]]
 name = "trillium-logger"
-version = "0.4.3"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50539be128242aa35f43fad99c5168a85739ba2696b0563319ecc036fbb16acc"
+checksum = "8a0d5329a0826c06cd7d36a81928345d97ab5277dcc7d1d624335eb52fa22d1a"
 dependencies = [
  "colored",
- "is-terminal",
  "log",
  "size",
  "time",

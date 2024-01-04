@@ -32,7 +32,7 @@ trillium-static = { version = "0.4.1", features = ["smol"] }
 trillium-websockets = { version = "0.6.0", features = ["json"] }
 trillium-smol = "0.3.1"
 trillium-client = { version = "0.4.9", features = ["json"] }
-trillium-logger = "0.4.3"
+trillium-logger = "0.4.4"
 trillium-html-rewriter = "0.3.0"
 url = "2.5.0"
 clap = { version = "4.4.12", features = ["derive", "env"] }
