@@ -2414,9 +2414,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-native-tls"
-version = "0.3.0"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b334348806f525ccfd1b5162c832926391094901c7ac4a36bd54f034ba7bc775"
+checksum = "ef7b00ecaf4271b04bcd96ea6667e59a6f14d09a9fac67570a6eed004db7f891"
 dependencies = [
  "async-native-tls",
  "native-tls",
