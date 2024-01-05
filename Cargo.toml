@@ -22,16 +22,16 @@ env_logger = "0.10.1"
 futures-lite = "2.1.0"
 log = "0.4.20"
 serde = { version = "1.0.194", features = ["derive"] }
-serde_json = "1.0.110"
-trillium = "0.2.11"
+serde_json = "1.0.111"
+trillium = "0.2.13"
 trillium-native-tls = "0.3.2"
-trillium-rustls = "0.4.0"
-trillium-proxy = "0.5.0"
+trillium-rustls = "0.5.0"
+trillium-proxy = "0.5.2"
 trillium-router = "0.3.6"
 trillium-static = { version = "0.4.1", features = ["smol"] }
-trillium-websockets = { version = "0.6.0", features = ["json"] }
-trillium-smol = "0.3.1"
-trillium-client = { version = "0.4.9", features = ["json"] }
+trillium-websockets = { version = "0.6.2", features = ["json"] }
+trillium-smol = "0.3.3"
+trillium-client = { version = "0.5.1", features = ["json"] }
 trillium-logger = "0.4.4"
 trillium-html-rewriter = "0.3.0"
 url = "2.5.0"

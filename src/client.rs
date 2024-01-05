@@ -73,7 +73,7 @@ impl ClientCli {
         log::trace!("{}", self.url.as_str());
         let mut conn = client.build_conn(self.method, self.url.clone());
 
-        conn.request_headers().extend(self.headers.clone());
+        conn.request_headers_mut().extend(self.headers.clone());
 
         if let Some(path) = &self.file {
             let file = async_fs::File::open(path)
