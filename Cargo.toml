@@ -35,7 +35,7 @@ trillium-client = { version = "0.4.9", features = ["json"] }
 trillium-logger = "0.4.3"
 trillium-html-rewriter = "0.3.0"
 url = "2.5.0"
-clap = { version = "4.4.12", features = ["derive", "env"] }
+clap = { version = "4.4.13", features = ["derive", "env"] }
 clap-verbosity-flag = "2.1.1"
 colored = "2.1.0"
 colored_json = "4.1.0"
