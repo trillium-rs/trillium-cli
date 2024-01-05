@@ -2457,9 +2457,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-rustls"
-version = "0.4.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3016aa92cfc68551ad7291c2f0dee6bb87f1bd08133d61ca93e61cebd1d3b4ce"
+checksum = "0dbc8492bf036593ba6f7de10e15a9c26ca521772fffb3c8c0ebb2bc280b35af"
 dependencies = [
  "async-rustls",
  "log",
