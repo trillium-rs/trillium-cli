@@ -224,13 +224,13 @@ dependencies = [
 
 [[package]]
 name = "async-net"
-version = "1.8.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0434b1ed18ce1cf5769b8ac540e33f01fa9471058b5e89da9e06f3c882a8c12f"
+checksum = "b948000fad4873c1c9339d60f2623323a0cfd3816e5181033c6a5cb68b2accf7"
 dependencies = [
- "async-io 1.13.0",
+ "async-io 2.2.2",
  "blocking",
- "futures-lite 1.13.0",
+ "futures-lite 2.1.0",
 ]
 
 [[package]]
@@ -2374,7 +2374,7 @@ dependencies = [
  "smartstring",
  "stopper",
  "thiserror",
- "trillium-macros 0.0.5",
+ "trillium-macros",
 ]
 
 [[package]]
@@ -2388,17 +2388,6 @@ dependencies = [
  "size",
  "time",
  "trillium",
-]
-
-[[package]]
-name = "trillium-macros"
-version = "0.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d19bf7f37bc3e66beae9792c0f7a0e3500465cf431da63fdb6af593b0e353a4"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.46",
 ]
 
 [[package]]
@@ -2491,21 +2480,22 @@ dependencies = [
 
 [[package]]
 name = "trillium-smol"
-version = "0.3.1"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d1f9ba437ee34426dd36f01a91e59bf27656bf9e676d68b336d7b3e3932c3f5"
+checksum = "91f9ca9fc22be687543ee24d23d9730f7370d57796adc2a2f2ccd9ce51b78199"
 dependencies = [
  "async-global-executor",
- "async-io 1.13.0",
+ "async-io 2.2.2",
  "async-net",
- "futures-lite 1.13.0",
+ "futures-lite 2.1.0",
  "log",
  "signal-hook",
  "signal-hook-async-std",
  "trillium",
  "trillium-http",
- "trillium-macros 0.0.4",
+ "trillium-macros",
  "trillium-server-common",
+ "url",
 ]
 
 [[package]]
