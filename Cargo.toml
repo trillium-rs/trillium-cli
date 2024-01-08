@@ -45,7 +45,7 @@ trillium-server-common = "0.4.7"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3.17"
-libc = "0.2.151"
+libc = "0.2.152"
 nix = { version = "0.27.1", default-features = false, features = ["signal", "process"] }
 notify = "6.1.1"
 
