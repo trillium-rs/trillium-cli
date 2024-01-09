@@ -1,3 +1,4 @@
+use crate::client_tls::{parse_url, ClientTls};
 use blocking::Unblock;
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
@@ -6,14 +7,9 @@ use log::Level;
 use std::{
     io::{ErrorKind, IsTerminal},
     path::PathBuf,
-    str::FromStr,
 };
-use trillium::{Body, Headers, Method, Status};
-use trillium_client::{Client, Conn, Error};
-use trillium_native_tls::NativeTlsConfig;
-use trillium_rustls::RustlsConfig;
-use trillium_smol::ClientConfig;
-use url::{self, Url};
+use trillium_client::{Client, Conn, Error, Headers, Status, Url};
+use trillium_http::{Body, Method}; // temporary
 
 #[derive(Parser, Debug)]
 pub struct ClientCli {
@@ -53,11 +49,11 @@ pub struct ClientCli {
     #[arg(short = 'H', long, value_parser = parse_header, verbatim_doc_comment)]
     headers: Vec<(String, String)>,
 
-    /// tls implementation. options: rustls, native-tls, none
+    /// tls implementation
     ///
     /// requests to https:// urls with `none` will fail
-    #[arg(short, long, default_value = "rustls", verbatim_doc_comment)]
-    tls: TlsType,
+    #[arg(short, long, verbatim_doc_comment, value_enum, default_value_t)]
+    tls: ClientTls,
 
     /// set the log level. add more flags for more verbosity
     ///
@@ -73,7 +69,7 @@ impl ClientCli {
         log::trace!("{}", self.url.as_str());
         let mut conn = client.build_conn(self.method, self.url.clone());
 
-        conn.request_headers().extend(self.headers.clone());
+        conn.request_headers_mut().extend(self.headers.clone());
 
         if let Some(path) = &self.file {
             let file = async_fs::File::open(path)
@@ -196,13 +192,9 @@ impl ClientCli {
                             "Method".italic().bright_blue(),
                             conn.method().as_str().bold()
                         );
-                        // if let Some(peer_addr) = conn.peer_addr() {
-                        //     println!(
-                        //         "{}: {}",
-                        //         "Peer Address".italic().bright_blue(),
-                        //         peer_addr.to_string()
-                        //     );
-                        // }
+                        if let Some(peer_addr) = conn.peer_addr() {
+                            println!("{}: {}", "Peer Address".italic().bright_blue(), peer_addr);
+                        }
                         println!("\n{}", "Request Headers".bold().underline());
                         print_headers(conn.request_headers());
                         println!("\n{}", "Response Headers".bold().underline());
@@ -227,48 +219,10 @@ fn print_headers(headers: &Headers) {
     }
 }
 
-#[derive(clap::ValueEnum, Debug, Eq, PartialEq, Clone, Copy)]
-pub enum TlsType {
-    None,
-    Rustls,
-    Native,
-}
-
-impl From<TlsType> for Client {
-    fn from(value: TlsType) -> Self {
-        match value {
-            TlsType::None => Client::new(ClientConfig::default()),
-            TlsType::Rustls => Client::new(RustlsConfig::<ClientConfig>::default()),
-            TlsType::Native => Client::new(NativeTlsConfig::<ClientConfig>::default()),
-        }
-    }
-}
-
 fn parse_method_case_insensitive(src: &str) -> Result<Method, String> {
     src.to_uppercase()
         .parse()
         .map_err(|_| format!("unrecognized method {}", src))
-}
-
-pub fn parse_url(src: &str) -> Result<Url, url::ParseError> {
-    if src.starts_with("http") {
-        src.parse()
-    } else {
-        format!("http://{}", src).parse()
-    }
-}
-
-impl FromStr for TlsType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match &*s.to_ascii_lowercase() {
-            "none" => Ok(Self::None),
-            "rustls" => Ok(Self::Rustls),
-            "native" | "native-tls" => Ok(Self::Native),
-            _ => Err(format!("unrecognized tls {}", s)),
-        }
-    }
 }
 
 fn parse_header(s: &str) -> Result<(String, String), String> {
