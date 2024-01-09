@@ -6,6 +6,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/trillium-rs/trillium-cli/compare/v0.2.1...v0.3.0) - 2024-01-09
+
+### Added
+- [**breaking**] add cargo features for all behavior
+
+### Other
+- Merge pull request [#34](https://github.com/trillium-rs/trillium-cli/pull/34) from trillium-rs/dependabot/cargo/libc-0.2.152
+- Merge pull request [#35](https://github.com/trillium-rs/trillium-cli/pull/35) from trillium-rs/dependabot/cargo/trillium-smol-0.3.3
+- Merge pull request [#36](https://github.com/trillium-rs/trillium-cli/pull/36) from trillium-rs/dependabot/cargo/trillium-rustls-0.5.0
+- Bump serde from 1.0.194 to 1.0.195
+- Merge pull request [#28](https://github.com/trillium-rs/trillium-cli/pull/28) from trillium-rs/dependabot/cargo/trillium-native-tls-0.3.2
+- Merge pull request [#27](https://github.com/trillium-rs/trillium-cli/pull/27) from trillium-rs/dependabot/cargo/trillium-server-common-0.4.7
+- Merge pull request [#29](https://github.com/trillium-rs/trillium-cli/pull/29) from trillium-rs/dependabot/cargo/trillium-logger-0.4.4
+- Bump clap from 4.4.12 to 4.4.13
+- Bump trillium-static from 0.4.0 to 0.4.1
+- Merge pull request [#24](https://github.com/trillium-rs/trillium-cli/pull/24) from trillium-rs/dependabot/cargo/trillium-router-0.3.6
+- Bump serde_json from 1.0.108 to 1.0.110
+- Bump serde from 1.0.193 to 1.0.194
+- Merge pull request [#16](https://github.com/trillium-rs/trillium-cli/pull/16) from trillium-rs/multiple-upstreams
+- Merge pull request [#17](https://github.com/trillium-rs/trillium-cli/pull/17) from trillium-rs/dependabot/cargo/trillium-websockets-0.6.0
+- Bump clap from 4.4.11 to 4.4.12
+
 ## [0.2.1](https://github.com/trillium-rs/trillium-cli/compare/v0.2.0...v0.2.1) - 2023-12-24
 
 ### Other
