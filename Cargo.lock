@@ -515,22 +515,18 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-queue"
-version = "0.3.9"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9bcf5bdbfdd6030fb4a1c497b5d5fc5921aa2f60d359a17e249c0e6df3de153"
+checksum = "df0346b5d5e76ac2fe4e327c5fd1118d6be7c51dfb18f9b7922923f287471e35"
 dependencies = [
- "cfg-if 1.0.0",
  "crossbeam-utils",
 ]
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.17"
+version = "0.8.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c06d96137f14f244c37f989d9fff8f95e6c18b918e71f36638f8c49112e4c78f"
-dependencies = [
- "cfg-if 1.0.0",
-]
+checksum = "248e3bacc7dc6baa3b21e405ee045c3047101a49145e7e9eca583ab4c2ca5345"
 
 [[package]]
 name = "crypto-common"
@@ -2255,7 +2251,7 @@ dependencies = [
  "signal-hook",
  "size",
  "trillium",
- "trillium-client",
+ "trillium-client 0.5.1",
  "trillium-html-rewriter",
  "trillium-logger",
  "trillium-native-tls",
@@ -2274,6 +2270,26 @@ name = "trillium-client"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fff47c1086f01f8eea120b3f11a85aa39634148b60dffddc8fb8ddb9d942cb91"
+dependencies = [
+ "crossbeam-queue",
+ "dashmap",
+ "encoding_rs",
+ "futures-lite 2.1.0",
+ "httparse",
+ "log",
+ "memchr",
+ "mime",
+ "size",
+ "trillium-http",
+ "trillium-server-common",
+ "url",
+]
+
+[[package]]
+name = "trillium-client"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2696ed59c1ad11d2593d7e1ec064077350acd9bdb23baecee4fa28e856fe9244"
 dependencies = [
  "crossbeam-queue",
  "dashmap",
@@ -2388,7 +2404,7 @@ dependencies = [
  "size",
  "sluice",
  "trillium",
- "trillium-client",
+ "trillium-client 0.4.9",
  "trillium-forwarding",
  "trillium-http",
  "trillium-server-common",
