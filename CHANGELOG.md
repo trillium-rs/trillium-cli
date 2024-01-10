@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/trillium-rs/trillium-cli/compare/v0.3.0...v0.3.1) - 2024-01-10
+
+### Other
+- Merge pull request [#43](https://github.com/trillium-rs/trillium-cli/pull/43) from trillium-rs/trillium-client-0.5.2
+- *(deps)* use trillium-client@v0.5.2, dropping direct trillium-http dep
+
 ## [0.3.0](https://github.com/trillium-rs/trillium-cli/compare/v0.2.1...v0.3.0) - 2024-01-09
 
 ### Added
