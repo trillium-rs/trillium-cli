@@ -17,7 +17,7 @@ serve = [
   "dep:trillium-logger",
   "dep:trillium-static",
   "dep:trillium-proxy",
-  "dep:trillium-client"
+  "dep:trillium-client",
 ]
 dev-server = [
   "dep:ansi-to-html",
@@ -35,7 +35,7 @@ dev-server = [
   "dep:notify",
   "dep:nix",
   "dep:signal-hook",
-  "dep:libc"
+  "dep:libc",
 ]
 client = [
   "dep:async-fs",
@@ -47,13 +47,12 @@ client = [
   "dep:colored_json",
   "dep:mime",
   "dep:size",
-  "dep:trillium-http"
 ]
 proxy = [
   "dep:trillium",
   "dep:trillium-proxy",
   "dep:trillium-logger",
-  "dep:trillium-client"
+  "dep:trillium-client",
 ]
 native-tls = ["dep:trillium-native-tls"]
 rustls = ["dep:trillium-rustls"]
@@ -77,10 +76,10 @@ trillium-proxy = { version = "0.5.2", optional = true }
 trillium-router = { version = "0.3.6", optional = true }
 trillium-static = { version = "0.4.1", features = ["smol"], optional = true }
 trillium-websockets = { version = "0.6.2", features = [
-  "json"
+  "json",
 ], optional = true }
 trillium-smol = "0.3.3"
-trillium-client = { version = "0.5.1", features = ["json"], optional = true }
+trillium-client = { version = "0.5.2", features = ["json"], optional = true }
 trillium-logger = { version = "0.4.4", optional = true }
 trillium-html-rewriter = { version = "0.3.0", optional = true }
 clap = { version = "4.4.14", features = ["derive", "env"] }
@@ -89,14 +88,13 @@ colored = { version = "2.1.0", optional = true }
 colored_json = { version = "4.1.0", optional = true }
 mime = { version = "0.3.17", optional = true }
 size = { version = "0.4.1", optional = true }
-trillium-http = { version = "0.3.11", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = { version = "0.3.17", optional = true }
 libc = { version = "0.2.152", optional = true }
 nix = { version = "0.27.1", default-features = false, features = [
   "signal",
-  "process"
+  "process",
 ], optional = true }
 notify = { version = "6.1.1", optional = true }
 
