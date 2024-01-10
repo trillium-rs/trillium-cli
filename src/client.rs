@@ -8,8 +8,7 @@ use std::{
     io::{ErrorKind, IsTerminal},
     path::PathBuf,
 };
-use trillium_client::{Client, Conn, Error, Headers, Status, Url};
-use trillium_http::{Body, Method}; // temporary
+use trillium_client::{Body, Client, Conn, Error, Headers, Method, Status, Url};
 
 #[derive(Parser, Debug)]
 pub struct ClientCli {
