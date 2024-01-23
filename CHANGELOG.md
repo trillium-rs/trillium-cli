@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/trillium-rs/trillium-cli/compare/v0.3.1...v0.3.2) - 2024-01-23
+
+### Other
+- *(deps)* Merge pull request [#54](https://github.com/trillium-rs/trillium-cli/pull/54) from trillium-rs/dependabot/cargo/clap-4.4.18
+- Bump async-io from 2.2.2 to 2.3.0
+- *(deps)* Merge pull request [#56](https://github.com/trillium-rs/trillium-cli/pull/56) from trillium-rs/dependabot/github_actions/actions/cache-4
+- *(deps)* Merge pull request [#57](https://github.com/trillium-rs/trillium-cli/pull/57) from trillium-rs/dependabot/cargo/env_logger-0.10.2
+- *(deps)* Merge pull request [#53](https://github.com/trillium-rs/trillium-cli/pull/53) from trillium-rs/dependabot/cargo/clap-verbosity-flag-2.1.2
+- Merge pull request [#50](https://github.com/trillium-rs/trillium-cli/pull/50) from trillium-rs/dependabot/github_actions/Swatinem/rust-cache-2.7.3
+- Bump trillium-client from 0.5.2 to 0.5.3
+- Bump clap from 4.4.15 to 4.4.17
+- Bump clap from 4.4.14 to 4.4.15
+- Bump Swatinem/rust-cache from 2.7.1 to 2.7.2
+- Merge pull request [#45](https://github.com/trillium-rs/trillium-cli/pull/45) from trillium-rs/use-better-clippy-action
+- use better clippy action (?)
+
 ## [0.3.1](https://github.com/trillium-rs/trillium-cli/compare/v0.3.0...v0.3.1) - 2024-01-10
 
 ### Other
