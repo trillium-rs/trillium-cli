@@ -827,9 +827,9 @@ dependencies = [
 
 [[package]]
 name = "futures-rustls"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3afda89bce8f65072d24f8b99a2127e229462d8008182ca93f1d5d2e5df8f22f"
+checksum = "c8d8a2499f0fecc0492eb3e47eab4e92da7875e1028ad2528f214ac3346ca04e"
 dependencies = [
  "futures-io",
  "rustls",
@@ -1714,7 +1714,6 @@ version = "0.22.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e87c9956bd9807afa1f77e0f7594af32566e830e088a5576d27c5b6f30f49d41"
 dependencies = [
- "log",
  "ring",
  "rustls-pki-types",
  "rustls-webpki",
@@ -2366,9 +2365,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-rustls"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf1e64e1e83ee0f3a4d7d3c483d16f4ec6791133efad292f92c7805bc35c9524"
+checksum = "ab16b64a5502f3d09869f6c6d3ce6400a5322dadee30f380649234dcd2527e85"
 dependencies = [
  "futures-rustls",
  "log",
