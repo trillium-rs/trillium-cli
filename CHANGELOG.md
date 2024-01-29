@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3](https://github.com/trillium-rs/trillium-cli/compare/v0.3.2...v0.3.3) - 2024-01-29
+
+### Other
+- *(deps)* bump serde_json from 1.0.111 to 1.0.113
+- Merge pull request [#65](https://github.com/trillium-rs/trillium-cli/pull/65) from trillium-rs/dependabot/cargo/serde-1.0.196
+- Merge pull request [#63](https://github.com/trillium-rs/trillium-cli/pull/63) from trillium-rs/dependabot/cargo/trillium-client-0.5.4
+- Merge pull request [#62](https://github.com/trillium-rs/trillium-cli/pull/62) from trillium-rs/dependabot/cargo/trillium-http-0.3.12
+- *(deps)* bump async-io from 2.3.0 to 2.3.1
+- *(deps)* bump trillium-rustls from 0.5.0 to 0.6.0
+- *(deps)* bump trillium-websockets from 0.6.2 to 0.6.3
+- Merge pull request [#59](https://github.com/trillium-rs/trillium-cli/pull/59) from trillium-rs/dependabot-prefix
+
 ## [0.3.2](https://github.com/trillium-rs/trillium-cli/compare/v0.3.1...v0.3.2) - 2024-01-23
 
 ### Other
