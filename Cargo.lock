@@ -144,7 +144,7 @@ checksum = "05b1b633a2115cd122d73b955eadd9916c18c8f510ec9cd1686404c60ad1c29c"
 dependencies = [
  "async-channel 2.1.1",
  "async-executor",
- "async-io 2.3.0",
+ "async-io 2.3.1",
  "async-lock 3.2.0",
  "blocking",
  "futures-lite 2.2.0",
@@ -173,9 +173,9 @@ dependencies = [
 
 [[package]]
 name = "async-io"
-version = "2.3.0"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb41eb19024a91746eba0773aa5e16036045bbf45733766661099e182ea6a744"
+checksum = "8f97ab0c5b00a7cdbe5a371b9a782ee7be1316095885c8a4ea1daf490eb0ef65"
 dependencies = [
  "async-lock 3.2.0",
  "cfg-if 1.0.0",
@@ -228,7 +228,7 @@ version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b948000fad4873c1c9339d60f2623323a0cfd3816e5181033c6a5cb68b2accf7"
 dependencies = [
- "async-io 2.3.0",
+ "async-io 2.3.1",
  "blocking",
  "futures-lite 2.2.0",
 ]
@@ -2195,7 +2195,7 @@ dependencies = [
  "ansi-to-html",
  "async-fs",
  "async-global-executor",
- "async-io 2.3.0",
+ "async-io 2.3.1",
  "blocking",
  "broadcaster",
  "clap",
@@ -2403,7 +2403,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91f9ca9fc22be687543ee24d23d9730f7370d57796adc2a2f2ccd9ce51b78199"
 dependencies = [
  "async-global-executor",
- "async-io 2.3.0",
+ "async-io 2.3.1",
  "async-net",
  "futures-lite 2.2.0",
  "log",
