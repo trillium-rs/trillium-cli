@@ -6,6 +6,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4](https://github.com/trillium-rs/trillium-cli/compare/v0.3.3...v0.3.4) - 2024-03-05
+
+### Fixed
+- *(deps)* update rust crate clap to 4.5.1
+- *(deps)* update rust crate env_logger to 0.11.3
+- *(deps)* update rust crate log to 0.4.21
+- *(deps)* update rust crate nix to 0.28.0
+- *(deps)* update rust crate serde to 1.0.197
+- *(deps)* update rust crate serde_json to 1.0.114
+- *(deps)* update rust crate clap-verbosity-flag to 2.2.0
+- *(deps)* update rust crate env_logger to 0.11.2
+- *(deps)* update rust crate trillium-websockets to 0.6.4
+- *(deps)* update rust crate trillium-client to 0.5.6
+
+### Other
+- Update README.md
+- Update README.md
+- Update README.md
+- *(deps)* lock file maintenance
+- *(deps)* bump mio from 0.8.10 to 0.8.11
+- *(deps)* lock file maintenance
+- *(actions)* add lock file maintenance
+- *(actions)* remove dependabot
+- Add renovate.json
+- *(deps)* dependabot does not run cargo update
+- *(deps)* bump trillium from 0.2.15 to 0.2.16
+- Merge pull request [#74](https://github.com/trillium-rs/trillium-cli/pull/74) from trillium-rs/dependabot/cargo/async-fs-2.1.1
+- *(deps)* bump clap from 4.4.18 to 4.5.0
+- Merge pull request [#72](https://github.com/trillium-rs/trillium-cli/pull/72) from trillium-rs/dependabot/cargo/trillium-client-0.5.5
+- *(deps)* bump trillium from 0.2.13 to 0.2.15
+- *(deps)* bump libc from 0.2.152 to 0.2.153
+
 ## [0.3.3](https://github.com/trillium-rs/trillium-cli/compare/v0.3.2...v0.3.3) - 2024-01-29
 
 ### Other
