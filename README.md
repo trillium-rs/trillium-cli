@@ -16,6 +16,7 @@ Options:
 
 ```
 
+# HTTP Client
 ```
 $ trillium help client
 Make http requests using the trillium client
@@ -73,7 +74,7 @@ Options:
   -h, --help
           Print help (see a summary with '-h')
 ```
-
+# Proxy (reverse and forward)
 ```
 $ trillium help proxy
 Run a http proxy
@@ -137,7 +138,7 @@ Options:
   -h, --help
           Print help (see a summary with '-h')
 ```
-
+# Static file server with optional reverse-proxy passthrough
 ```
 $ trillium help serve
 Static file server and reverse proxy
