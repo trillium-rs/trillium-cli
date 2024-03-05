@@ -139,7 +139,6 @@ Options:
 ```
 
 ```
-```
 $ trillium help serve
 Static file server and reverse proxy
 
