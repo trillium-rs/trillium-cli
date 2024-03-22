@@ -1699,6 +1699,7 @@ version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0971d3c8943a6267d6bd0d782fdc4afa7593e7381a92a3df950ff58897e066b5"
 dependencies = [
+ "memchr",
  "smartcow",
  "smartstring",
 ]
@@ -2377,9 +2378,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-router"
-version = "0.3.6"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71daa9c919d4b4a7afae1a846fa2e60aad712e5b924936751630a880a84e9659"
+checksum = "0fc712d6f93919120bf6f5eed2d328a9a7317ad02bb8946bacd29c3f056125ce"
 dependencies = [
  "log",
  "routefinder",
