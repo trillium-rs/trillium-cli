@@ -82,7 +82,7 @@ trillium-smol = "0.3.3"
 trillium-client = { version = "0.5.6", features = ["json"], optional = true }
 trillium-logger = { version = "0.4.4", optional = true }
 trillium-html-rewriter = { version = "0.3.0", optional = true }
-clap = { version = "4.5.3", features = ["derive", "env"] }
+clap = { version = "4.5.4", features = ["derive", "env"] }
 clap-verbosity-flag = "2.2.0"
 colored = { version = "2.1.0", optional = true }
 colored_json = { version = "4.1.0", optional = true }
