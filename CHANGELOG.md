@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5](https://github.com/trillium-rs/trillium-cli/compare/v0.3.4...v0.3.5) - 2024-04-04
+
+### Fixed
+- *(deps)* update rust crate trillium-rustls to 0.7.0
+- *(deps)* update rust crate clap to 4.5.4
+- *(deps)* update rust crate trillium-proxy to 0.5.3
+- *(deps)* update rust crate trillium-router to 0.4.0
+- *(deps)* update rust crate futures-lite to 2.3.0
+- *(deps)* update rust crate clap to 4.5.3
+- *(deps)* update rust crate async-io to 2.3.2
+- *(deps)* update rust crate clap to 4.5.2
+
+### Other
+- Merge pull request [#106](https://github.com/trillium-rs/trillium-cli/pull/106) from trillium-rs/renovate/trillium-router-0.x
+
 ## [0.3.4](https://github.com/trillium-rs/trillium-cli/compare/v0.3.3...v0.3.4) - 2024-03-05
 
 ### Fixed

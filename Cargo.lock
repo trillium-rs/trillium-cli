@@ -2490,7 +2490,7 @@ dependencies = [
 
 [[package]]
 name = "trillium-cli"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "ansi-to-html",
  "async-fs",
