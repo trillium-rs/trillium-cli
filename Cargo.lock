@@ -2673,7 +2673,7 @@ dependencies = [
  "log",
  "rustls-pemfile",
  "rustls-platform-verifier",
- "trillium-server-common 0.5.1",
+ "trillium-server-common 0.5.2",
  "webpki-roots",
 ]
 
@@ -2697,9 +2697,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-server-common"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8284d0f43d5f8572f23170fd8a49542a591fa274db61e29a26e719f80260802"
+checksum = "a96faa60ceaf4b575886eb7d2ad3df4371acf67e0a4489585cccd4ff18966103"
 dependencies = [
  "async-trait",
  "async_cell",
@@ -2715,9 +2715,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-smol"
-version = "0.3.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91f9ca9fc22be687543ee24d23d9730f7370d57796adc2a2f2ccd9ce51b78199"
+checksum = "ec354b7f2e4b89cf14b9e47dcdb94fd1663ff0ba34d131ddd7082f24253319fa"
 dependencies = [
  "async-global-executor",
  "async-io 2.3.2",
@@ -2729,8 +2729,7 @@ dependencies = [
  "trillium",
  "trillium-http",
  "trillium-macros",
- "trillium-server-common 0.4.7",
- "url",
+ "trillium-server-common 0.5.2",
 ]
 
 [[package]]
