@@ -2622,13 +2622,13 @@ dependencies = [
 
 [[package]]
 name = "trillium-native-tls"
-version = "0.3.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef7b00ecaf4271b04bcd96ea6667e59a6f14d09a9fac67570a6eed004db7f891"
+checksum = "156b7da36f7338192369e289ff231d842c25f35633eec157b4695398ac126fc8"
 dependencies = [
  "async-native-tls",
  "native-tls",
- "trillium-server-common 0.4.7",
+ "trillium-server-common 0.5.2",
 ]
 
 [[package]]
@@ -2673,7 +2673,7 @@ dependencies = [
  "log",
  "rustls-pemfile",
  "rustls-platform-verifier",
- "trillium-server-common 0.5.1",
+ "trillium-server-common 0.5.2",
  "webpki-roots",
 ]
 
@@ -2697,9 +2697,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-server-common"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8284d0f43d5f8572f23170fd8a49542a591fa274db61e29a26e719f80260802"
+checksum = "a96faa60ceaf4b575886eb7d2ad3df4371acf67e0a4489585cccd4ff18966103"
 dependencies = [
  "async-trait",
  "async_cell",
