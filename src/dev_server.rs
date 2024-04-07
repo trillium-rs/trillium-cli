@@ -1,4 +1,3 @@
-use broadcaster::BroadcastChannel;
 use clap::Parser;
 use log::LevelFilter;
 use nix::{
@@ -134,7 +133,7 @@ impl DevServer {
         let child_id = Arc::new(Mutex::new(child.id()));
 
         let (tx, rx) = mpsc::channel();
-        let broadcaster = BroadcastChannel::new();
+        let (broadcast_tx, broadcast_rx) = async_broadcast::broadcast(10);
 
         {
             let tx = tx.clone();
@@ -187,21 +186,21 @@ impl DevServer {
 
         {
             let child_id = child_id.clone();
-            let broadcaster = broadcaster.clone();
+            let broadcaster = broadcast_tx.clone();
             thread::spawn(move || loop {
                 child.wait().unwrap();
                 log::info!("shut down, restarting");
                 child = run.spawn().unwrap();
                 *child_id.lock().unwrap() = child.id();
                 thread::sleep(Duration::from_millis(500));
-                async_io::block_on(broadcaster.send(&Event::Restarted)).ok();
+                async_io::block_on(broadcaster.broadcast_direct(Event::Restarted)).unwrap();
             });
         }
         {
-            let broadcaster = broadcaster.clone();
+            let broadcaster = broadcast_tx.clone();
             thread::spawn(move || loop {
                 let event = rx.recv().unwrap();
-                async_io::block_on(broadcaster.send(&event)).unwrap();
+                async_io::block_on(broadcaster.broadcast_direct(event.clone())).unwrap();
                 match event {
                     Event::BinaryChanged => {
                         log::info!("attempting to send {}", &signal);
@@ -218,11 +217,14 @@ impl DevServer {
                             Ok(ok) => {
                                 if ok.status.success() {
                                     log::debug!("{}", String::from_utf8_lossy(&ok.stdout[..]));
-                                    async_io::block_on(broadcaster.send(&Event::BuildSuccess)).ok();
+                                    async_io::block_on(
+                                        broadcaster.broadcast_direct(Event::BuildSuccess),
+                                    )
+                                    .ok();
                                 } else {
                                     io::stderr().write_all(&ok.stderr).unwrap();
                                     async_io::block_on(
-                                        broadcaster.send(&Event::CompileError {
+                                        broadcaster.broadcast_direct(Event::CompileError {
                                             error: ansi_to_html::convert(&String::from_utf8_lossy(
                                                 &ok.stderr,
                                             ))
@@ -242,14 +244,12 @@ impl DevServer {
             });
         }
 
-        proxy_app::run(format!("http://{}:{}", "localhost", "8080"), broadcaster);
+        proxy_app::run(format!("http://{}:{}", "localhost", "8080"), broadcast_rx);
     }
 }
 
 mod proxy_app {
     use super::Event;
-    use broadcaster::BroadcastChannel;
-    use futures_lite::StreamExt;
     use trillium::{Conn, KnownHeaderName, State};
     use trillium_client::Client;
     use trillium_html_rewriter::{
@@ -261,13 +261,9 @@ mod proxy_app {
     use trillium_smol::ClientConfig;
     use trillium_websockets::{WebSocket, WebSocketConn};
 
-    pub fn run(proxy: String, rx: BroadcastChannel<Event>) {
+    pub fn run(proxy: String, rx: async_broadcast::Receiver<Event>) {
         static PORT: u16 = 8082;
-        let client = Client::new(ClientConfig {
-            nodelay: Some(true),
-            ..Default::default()
-        })
-        .with_default_pool();
+        let client = Client::new(ClientConfig::default().with_nodelay(true)).with_default_pool();
 
         trillium_smol::config()
             .without_signals()
@@ -286,8 +282,10 @@ mod proxy_app {
                         (
                             State::new(rx),
                             WebSocket::new(|mut conn: WebSocketConn| async move {
-                                let mut rx = conn.take_state::<BroadcastChannel<Event>>().unwrap();
-                                while let Some(message) = rx.next().await {
+                                let mut rx = conn
+                                    .take_state::<async_broadcast::Receiver<Event>>()
+                                    .unwrap();
+                                while let Ok(message) = rx.recv_direct().await {
                                     if let Err(e) = conn.send_json(&message).await {
                                         log::error!("{:?}", e);
                                         return;
