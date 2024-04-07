@@ -105,7 +105,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f28243a43d821d11341ab73c80bed182dc015c514b951616cf79bd4af39af0c3"
 dependencies = [
  "concurrent-queue",
- "event-listener 5.2.0",
+ "event-listener 5.3.0",
  "event-listener-strategy 0.5.1",
  "futures-core",
  "pin-project-lite",
@@ -547,9 +547,9 @@ dependencies = [
 
 [[package]]
 name = "colored_json"
-version = "4.1.0"
+version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79cff32df5cfea75e6484eeff0b4e48ad3977fb6582676a7862b3590dddc7a87"
+checksum = "e35980a1b846f8e3e359fd18099172a0857140ba9230affc4f71348081e039b6"
 dependencies = [
  "serde",
  "serde_json",
@@ -810,9 +810,9 @@ dependencies = [
 
 [[package]]
 name = "event-listener"
-version = "5.2.0"
+version = "5.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b5fb89194fa3cad959b833185b3063ba881dbfc7030680b314250779fb4cc91"
+checksum = "6d9944b8ca13534cdfb2800775f8dd4902ff3fc75a50101466decadfdf322a24"
 dependencies = [
  "concurrent-queue",
  "parking",
@@ -835,7 +835,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "332f51cb23d20b0de8458b86580878211da09bcd4503cb579c225b3d124cabb3"
 dependencies = [
- "event-listener 5.2.0",
+ "event-listener 5.3.0",
  "pin-project-lite",
 ]
 
@@ -2336,7 +2336,7 @@ version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66c82d03d16a1e591756e978782ce4bc4300f83048b57d44c5600dafa7337019"
 dependencies = [
- "event-listener 5.2.0",
+ "event-listener 5.3.0",
  "futures-lite 2.3.0",
  "pin-project-lite",
 ]
@@ -2520,7 +2520,7 @@ dependencies = [
  "signal-hook",
  "size",
  "trillium",
- "trillium-client 0.5.6",
+ "trillium-client",
  "trillium-html-rewriter",
  "trillium-logger",
  "trillium-native-tls",
@@ -2530,29 +2530,6 @@ dependencies = [
  "trillium-smol",
  "trillium-static",
  "trillium-websockets",
-]
-
-[[package]]
-name = "trillium-client"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "033e800afc0e2b7e3f4c1745037df38b9f9f447c510717af0a7c1434c6f81b50"
-dependencies = [
- "crossbeam-queue",
- "dashmap",
- "encoding_rs",
- "futures-lite 2.3.0",
- "httparse",
- "log",
- "memchr",
- "mime",
- "serde",
- "serde_json",
- "size",
- "thiserror",
- "trillium-http",
- "trillium-server-common 0.4.7",
- "url",
 ]
 
 [[package]]
@@ -2569,9 +2546,12 @@ dependencies = [
  "log",
  "memchr",
  "mime",
+ "serde",
+ "serde_json",
  "size",
+ "thiserror",
  "trillium-http",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
 ]
 
 [[package]]
@@ -2664,7 +2644,7 @@ checksum = "156b7da36f7338192369e289ff231d842c25f35633eec157b4695398ac126fc8"
 dependencies = [
  "async-native-tls",
  "native-tls",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
 ]
 
 [[package]]
@@ -2681,10 +2661,10 @@ dependencies = [
  "size",
  "sluice",
  "trillium",
- "trillium-client 0.6.1",
+ "trillium-client",
  "trillium-forwarding",
  "trillium-http",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
  "url",
 ]
 
@@ -2709,26 +2689,8 @@ dependencies = [
  "log",
  "rustls-pemfile",
  "rustls-platform-verifier",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
  "webpki-roots",
-]
-
-[[package]]
-name = "trillium-server-common"
-version = "0.4.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b4f157b81051bb2630b6750d6583f648f545d241ef4b939781f4ad6a45fe700"
-dependencies = [
- "async-trait",
- "async_cell",
- "event-listener 4.0.3",
- "futures-lite 2.3.0",
- "log",
- "pin-project-lite",
- "rlimit",
- "trillium",
- "trillium-http",
- "url",
 ]
 
 [[package]]
@@ -2765,7 +2727,7 @@ dependencies = [
  "trillium",
  "trillium-http",
  "trillium-macros 0.0.5",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
 ]
 
 [[package]]
@@ -3118,9 +3080,9 @@ checksum = "927da81e25be1e1a2901d59b81b37dd2efd1fc9c9345a55007f09bf5a2d3ee03"
 
 [[package]]
 name = "yansi"
-version = "0.5.1"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
+checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "zerocopy"
