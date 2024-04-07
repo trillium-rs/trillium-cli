@@ -314,6 +314,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
+name = "base64"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9475866fec1451be56a3c2400fd081ff546538961565ccb5b7142cbd22bc7a51"
+
+[[package]]
 name = "bindgen"
 version = "0.69.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2014,7 +2020,7 @@ version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f48172685e6ff52a556baa527774f61fcaa884f59daf3375c62a3f1cd2549dab"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "rustls-pki-types",
 ]
 
@@ -2781,12 +2787,12 @@ dependencies = [
 
 [[package]]
 name = "trillium-websockets"
-version = "0.6.4"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6a5d578d242790ef45a99cd35aa9f7d1444918c7ca93ca62333b25cbc50a45c"
+checksum = "659ff2c93eac21312e159df0e8d2cc90480fdb30c83f9bf2f553190c0885d327"
 dependencies = [
  "async-tungstenite",
- "base64",
+ "base64 0.22.0",
  "fastrand 2.0.2",
  "futures-lite 2.3.0",
  "futures-util",
