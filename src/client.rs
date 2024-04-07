@@ -134,7 +134,7 @@ impl ClientCli {
                     )
                     .await
                     {
-                        Err(e) if e.kind() == std::io::ErrorKind::WriteZero => {}
+                        Err(e) if e.kind() == ErrorKind::WriteZero => {}
                         other => {
                             other.unwrap();
                         }
