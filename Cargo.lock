@@ -2479,12 +2479,11 @@ checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
 
 [[package]]
 name = "trillium"
-version = "0.2.17"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94dc381af2f03ae743d30c8997a9264003674d43a986697ff7f502adac2f44b2"
+checksum = "01c7180eac36666f14504c5a8606d027154a8e3a4704bd0acc69a13f56c202b6"
 dependencies = [
  "async-trait",
- "futures-lite 2.3.0",
  "log",
  "trillium-http",
 ]
@@ -2515,7 +2514,7 @@ dependencies = [
  "signal-hook",
  "size",
  "trillium",
- "trillium-client",
+ "trillium-client 0.5.6",
  "trillium-html-rewriter",
  "trillium-logger",
  "trillium-native-tls",
@@ -2551,10 +2550,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "trillium-forwarding"
-version = "0.2.3"
+name = "trillium-client"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c9d3277d2479cd05fd8915e825cee7535d3ccc7ccf06d4c57465a666437d74"
+checksum = "849934ffb43e2601ad74d611295bee9dae611a13700e03a5c4223ad82ddb288c"
+dependencies = [
+ "crossbeam-queue",
+ "dashmap",
+ "encoding_rs",
+ "futures-lite 2.3.0",
+ "httparse",
+ "log",
+ "memchr",
+ "mime",
+ "size",
+ "trillium-http",
+ "trillium-server-common 0.5.2",
+]
+
+[[package]]
+name = "trillium-forwarding"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683796aeee40649ad14ef91d90c4963ffeea3ff283edfb9b0ea750eea03c40c0"
 dependencies = [
  "cidr",
  "log",
@@ -2577,9 +2595,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-http"
-version = "0.3.15"
+version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08cec7fc9b410d4d27a252e2925e656ddb27ee4cd80f86bfb3c8a0e39a9791f6"
+checksum = "a18d82a9418c6fc1a872bc163fffd49320229edf783cbbb1aa62ba49f517cfad"
 dependencies = [
  "encoding_rs",
  "futures-lite 2.3.0",
@@ -2594,7 +2612,7 @@ dependencies = [
  "smartstring",
  "stopper",
  "thiserror",
- "trillium-macros",
+ "trillium-macros 0.0.6",
 ]
 
 [[package]]
@@ -2622,6 +2640,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "trillium-macros"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "916e37646d33632b88ca02d4b8c4e2e6376f2a89d9888de71b7d82c150ed1f6c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.58",
+]
+
+[[package]]
 name = "trillium-native-tls"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2634,9 +2663,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-proxy"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb2c1ed289507cbc921292ba3cb59375aeb3fbead166e868bedcb1adb3ad8e5c"
+checksum = "9c6a1fa384ab1590f98994a385e8b68074824e5ac68c902358a6c21c793a217a"
 dependencies = [
  "event-listener 4.0.3",
  "fastrand 2.0.2",
@@ -2646,10 +2675,10 @@ dependencies = [
  "size",
  "sluice",
  "trillium",
- "trillium-client",
+ "trillium-client 0.6.1",
  "trillium-forwarding",
  "trillium-http",
- "trillium-server-common 0.4.7",
+ "trillium-server-common 0.5.2",
  "url",
 ]
 
@@ -2729,7 +2758,7 @@ dependencies = [
  "signal-hook-async-std",
  "trillium",
  "trillium-http",
- "trillium-macros",
+ "trillium-macros 0.0.5",
  "trillium-server-common 0.5.2",
 ]
 
