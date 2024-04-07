@@ -2764,9 +2764,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-static"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "561d5722c0f8aa5b52c5389d665f8fbccf0028350cbe588bc190d21b5c26d0e8"
+checksum = "1281fb507b4147ffadc85a482080e6d3b7e62bd269b9e5ba8c7c56c6e61b95b9"
 dependencies = [
  "async-fs",
  "cfg-if 1.0.0",
