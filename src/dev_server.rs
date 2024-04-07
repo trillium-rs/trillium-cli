@@ -12,7 +12,6 @@ use signal_hook::{
     iterator::Signals,
 };
 use std::{
-    convert::TryInto,
     env,
     io::{self, Write},
     path::PathBuf,
@@ -276,8 +275,11 @@ mod proxy_app {
             .run((
                 Router::new()
                     .get("/_dev_server.js", |conn: Conn| async move {
-                        conn.with_header(KnownHeaderName::ContentType, "application/javascript")
-                            .ok(include_str!("./dev_server.js"))
+                        conn.with_response_header(
+                            KnownHeaderName::ContentType,
+                            "application/javascript",
+                        )
+                        .ok(include_str!("./dev_server.js"))
                     })
                     .get(
                         "/_dev_server.ws",
