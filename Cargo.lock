@@ -2479,12 +2479,11 @@ checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
 
 [[package]]
 name = "trillium"
-version = "0.2.17"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94dc381af2f03ae743d30c8997a9264003674d43a986697ff7f502adac2f44b2"
+checksum = "01c7180eac36666f14504c5a8606d027154a8e3a4704bd0acc69a13f56c202b6"
 dependencies = [
  "async-trait",
- "futures-lite 2.3.0",
  "log",
  "trillium-http",
 ]
@@ -2577,9 +2576,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-http"
-version = "0.3.15"
+version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08cec7fc9b410d4d27a252e2925e656ddb27ee4cd80f86bfb3c8a0e39a9791f6"
+checksum = "a18d82a9418c6fc1a872bc163fffd49320229edf783cbbb1aa62ba49f517cfad"
 dependencies = [
  "encoding_rs",
  "futures-lite 2.3.0",
@@ -2594,7 +2593,7 @@ dependencies = [
  "smartstring",
  "stopper",
  "thiserror",
- "trillium-macros",
+ "trillium-macros 0.0.6",
 ]
 
 [[package]]
@@ -2615,6 +2614,17 @@ name = "trillium-macros"
 version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "916054381183f0cfed7604bf7de2044a760624a50d26eef5492468fb73083bbb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.58",
+]
+
+[[package]]
+name = "trillium-macros"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "916e37646d33632b88ca02d4b8c4e2e6376f2a89d9888de71b7d82c150ed1f6c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2729,15 +2739,15 @@ dependencies = [
  "signal-hook-async-std",
  "trillium",
  "trillium-http",
- "trillium-macros",
+ "trillium-macros 0.0.5",
  "trillium-server-common 0.5.2",
 ]
 
 [[package]]
 name = "trillium-static"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "561d5722c0f8aa5b52c5389d665f8fbccf0028350cbe588bc190d21b5c26d0e8"
+checksum = "1281fb507b4147ffadc85a482080e6d3b7e62bd269b9e5ba8c7c56c6e61b95b9"
 dependencies = [
  "async-fs",
  "cfg-if 1.0.0",
