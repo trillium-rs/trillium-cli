@@ -2514,7 +2514,7 @@ dependencies = [
  "signal-hook",
  "size",
  "trillium",
- "trillium-client 0.5.6",
+ "trillium-client",
  "trillium-html-rewriter",
  "trillium-logger",
  "trillium-native-tls",
@@ -2524,29 +2524,6 @@ dependencies = [
  "trillium-smol",
  "trillium-static",
  "trillium-websockets",
-]
-
-[[package]]
-name = "trillium-client"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "033e800afc0e2b7e3f4c1745037df38b9f9f447c510717af0a7c1434c6f81b50"
-dependencies = [
- "crossbeam-queue",
- "dashmap",
- "encoding_rs",
- "futures-lite 2.3.0",
- "httparse",
- "log",
- "memchr",
- "mime",
- "serde",
- "serde_json",
- "size",
- "thiserror",
- "trillium-http",
- "trillium-server-common 0.4.7",
- "url",
 ]
 
 [[package]]
@@ -2563,9 +2540,12 @@ dependencies = [
  "log",
  "memchr",
  "mime",
+ "serde",
+ "serde_json",
  "size",
+ "thiserror",
  "trillium-http",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
 ]
 
 [[package]]
@@ -2658,7 +2638,7 @@ checksum = "156b7da36f7338192369e289ff231d842c25f35633eec157b4695398ac126fc8"
 dependencies = [
  "async-native-tls",
  "native-tls",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
 ]
 
 [[package]]
@@ -2675,10 +2655,10 @@ dependencies = [
  "size",
  "sluice",
  "trillium",
- "trillium-client 0.6.1",
+ "trillium-client",
  "trillium-forwarding",
  "trillium-http",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
  "url",
 ]
 
@@ -2703,26 +2683,8 @@ dependencies = [
  "log",
  "rustls-pemfile",
  "rustls-platform-verifier",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
  "webpki-roots",
-]
-
-[[package]]
-name = "trillium-server-common"
-version = "0.4.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b4f157b81051bb2630b6750d6583f648f545d241ef4b939781f4ad6a45fe700"
-dependencies = [
- "async-trait",
- "async_cell",
- "event-listener 4.0.3",
- "futures-lite 2.3.0",
- "log",
- "pin-project-lite",
- "rlimit",
- "trillium",
- "trillium-http",
- "url",
 ]
 
 [[package]]
@@ -2759,7 +2721,7 @@ dependencies = [
  "trillium",
  "trillium-http",
  "trillium-macros 0.0.5",
- "trillium-server-common 0.5.2",
+ "trillium-server-common",
 ]
 
 [[package]]
