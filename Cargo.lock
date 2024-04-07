@@ -2514,7 +2514,7 @@ dependencies = [
  "signal-hook",
  "size",
  "trillium",
- "trillium-client",
+ "trillium-client 0.5.6",
  "trillium-html-rewriter",
  "trillium-logger",
  "trillium-native-tls",
@@ -2550,10 +2550,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "trillium-forwarding"
-version = "0.2.3"
+name = "trillium-client"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c9d3277d2479cd05fd8915e825cee7535d3ccc7ccf06d4c57465a666437d74"
+checksum = "849934ffb43e2601ad74d611295bee9dae611a13700e03a5c4223ad82ddb288c"
+dependencies = [
+ "crossbeam-queue",
+ "dashmap",
+ "encoding_rs",
+ "futures-lite 2.3.0",
+ "httparse",
+ "log",
+ "memchr",
+ "mime",
+ "size",
+ "trillium-http",
+ "trillium-server-common 0.5.2",
+]
+
+[[package]]
+name = "trillium-forwarding"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683796aeee40649ad14ef91d90c4963ffeea3ff283edfb9b0ea750eea03c40c0"
 dependencies = [
  "cidr",
  "log",
@@ -2644,9 +2663,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-proxy"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb2c1ed289507cbc921292ba3cb59375aeb3fbead166e868bedcb1adb3ad8e5c"
+checksum = "9c6a1fa384ab1590f98994a385e8b68074824e5ac68c902358a6c21c793a217a"
 dependencies = [
  "event-listener 4.0.3",
  "fastrand 2.0.2",
@@ -2656,10 +2675,10 @@ dependencies = [
  "size",
  "sluice",
  "trillium",
- "trillium-client",
+ "trillium-client 0.6.1",
  "trillium-forwarding",
  "trillium-http",
- "trillium-server-common 0.4.7",
+ "trillium-server-common 0.5.2",
  "url",
 ]
 
