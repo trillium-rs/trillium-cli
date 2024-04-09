@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7](https://github.com/trillium-rs/trillium-cli/compare/v0.3.6...v0.3.7) - 2024-04-09
+
+### Other
+- update Cargo.lock dependencies
+
 ## [0.3.6](https://github.com/trillium-rs/trillium-cli/compare/v0.3.5...v0.3.6) - 2024-04-07
 
 ### Fixed
