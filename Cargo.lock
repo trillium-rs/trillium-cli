@@ -2526,7 +2526,7 @@ dependencies = [
  "smartstring",
  "stopper",
  "thiserror",
- "trillium-macros 0.0.6",
+ "trillium-macros",
 ]
 
 [[package]]
@@ -2540,17 +2540,6 @@ dependencies = [
  "size",
  "time",
  "trillium",
-]
-
-[[package]]
-name = "trillium-macros"
-version = "0.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "916054381183f0cfed7604bf7de2044a760624a50d26eef5492468fb73083bbb"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.58",
 ]
 
 [[package]]
@@ -2641,9 +2630,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-smol"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec354b7f2e4b89cf14b9e47dcdb94fd1663ff0ba34d131ddd7082f24253319fa"
+checksum = "3a1c196273bd6e41705150834f5771699ad9c2e38ce317aecd3f6e0ec4c2b2e6"
 dependencies = [
  "async-global-executor",
  "async-io 2.3.2",
@@ -2654,7 +2643,7 @@ dependencies = [
  "signal-hook-async-std",
  "trillium",
  "trillium-http",
- "trillium-macros 0.0.5",
+ "trillium-macros",
  "trillium-server-common",
 ]
 

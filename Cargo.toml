@@ -77,7 +77,7 @@ trillium-static = { version = "0.4.2", features = ["smol"], optional = true }
 trillium-websockets = { version = "0.6.5", features = [
   "json",
 ], optional = true }
-trillium-smol = "0.4.0"
+trillium-smol = "0.4.1"
 trillium-client = { version = "0.6.1", features = ["json"], optional = true }
 trillium-logger = { version = "0.4.5", optional = true }
 trillium-html-rewriter = { version = "0.3.0", optional = true }
