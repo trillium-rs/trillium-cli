@@ -59,7 +59,7 @@ rustls = ["dep:trillium-rustls"]
 
 [dependencies]
 ansi-to-html = { version = "0.2.1", optional = true }
-async-fs = { version = "2.1.1", optional = true }
+async-fs = { version = "2.1.2", optional = true }
 async-global-executor = "2.4.1"
 async-io = { version = "2.3.2", optional = true }
 blocking = { version = "1.5.1", optional = true }
