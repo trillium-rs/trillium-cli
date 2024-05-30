@@ -2576,9 +2576,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-proxy"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c6a1fa384ab1590f98994a385e8b68074824e5ac68c902358a6c21c793a217a"
+checksum = "8656ede56151fdb1f915e04887f2ce9820db56da08793d8fd865db32435e2f4a"
 dependencies = [
  "event-listener 4.0.3",
  "fastrand 2.0.2",
