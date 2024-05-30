@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.8](https://github.com/trillium-rs/trillium-cli/compare/v0.3.7...v0.3.8) - 2024-05-30
+
+### Fixed
+- *(deps)* update rust crate blocking to v1.6.1
+- *(deps)* update rust crate async-fs to v2.1.2
+- *(deps)* update rust crate serde_json to v1.0.117
+- *(deps)* update rust crate nix to 0.29.0
+- *(deps)* update rust crate trillium to v0.2.20
+- *(deps)* update rust crate trillium-client to v0.6.2
+- *(deps)* update rust crate serde_json to 1.0.116
+- *(deps)* update rust crate serde to 1.0.198
+
+### Other
+- *(deps)* update lukka/get-cmake action to v3.29.3
+- *(deps)* bump rustls from 0.23.4 to 0.23.5
+- *(deps)* lock file maintenance
+- *(deps)* update lukka/get-cmake action to v3.29.2
+
 ## [0.3.7](https://github.com/trillium-rs/trillium-cli/compare/v0.3.6...v0.3.7) - 2024-04-13
 
 ### Fixed
