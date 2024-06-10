@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.9](https://github.com/trillium-rs/trillium-cli/compare/v0.3.8...v0.3.9) - 2024-06-10
+
+### Fixed
+- *(deps)* update rust crate clap to v4.5.7
+- *(deps)* update rust crate clap to v4.5.6
+
+### Other
+- *(deps)* update lukka/get-cmake action to v3.29.4
+
 ## [0.3.8](https://github.com/trillium-rs/trillium-cli/compare/v0.3.7...v0.3.8) - 2024-05-30
 
 ### Fixed

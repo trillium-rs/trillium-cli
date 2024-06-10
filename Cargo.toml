@@ -1,6 +1,6 @@
 [package]
 name = "trillium-cli"
-version = "0.3.8"
+version = "0.3.9"
 authors = ["Jacob Rothstein <hi@jbr.me>"]
 description = "The trillium.rs cli"
 license = "MIT OR Apache-2.0"
