@@ -26,7 +26,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: lukka/get-cmake@v3.29.6
+      - uses: lukka/get-cmake@v3.30.5
       - name: Install NASM for aws-lc-rs on Windows
         if: runner.os == 'Windows'
         uses: ilammy/setup-nasm@v1
