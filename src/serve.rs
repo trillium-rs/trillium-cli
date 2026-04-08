@@ -1,5 +1,5 @@
 use crate::{
-    client_tls::{parse_url, ClientTls},
+    client_tls::{ClientTls, parse_url},
     server_tls::ServerTls,
 };
 use clap::Parser;
@@ -69,7 +69,7 @@ impl StaticCli {
             Logger::new(),
             self.forward
                 .clone()
-                .map(|url| Proxy::new(Client::from(ClientTls::default()).with_default_pool(), url)),
+                .map(|url| Proxy::new(Client::from(ClientTls::default()), url)),
             static_file_handler,
         );
 
@@ -79,12 +79,23 @@ impl StaticCli {
 
         #[cfg(feature = "rustls")]
         if let Some(acceptor) = self.server_tls.rustls_acceptor() {
+            #[cfg(feature = "h3")]
+            if let Some(quic) = self.server_tls.quic() {
+                config.with_acceptor(acceptor).with_quic(quic).run(server);
+                return;
+            }
+
             config.with_acceptor(acceptor).run(server);
             return;
         }
 
         #[cfg(feature = "native-tls")]
         if let Some(acceptor) = self.server_tls.native_tls_acceptor() {
+            #[cfg(feature = "h3")]
+            if let Some(quic) = self.server_tls.quic() {
+                config.with_acceptor(acceptor).with_quic(quic).run(server);
+                return;
+            }
             config.with_acceptor(acceptor).run(server);
             return;
         }

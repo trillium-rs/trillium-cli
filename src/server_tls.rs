@@ -10,7 +10,7 @@ pub struct ServerTls {
     ///
     /// Example: `--rustls-cert ./cert.pem --rustls-key ./key.pem`
     /// For development, try using mkcert
-    #[cfg(feature = "rustls")]
+    #[cfg(any(feature = "rustls", feature = "h3"))]
     #[arg(long, env, requires = "rustls_key")]
     #[cfg_attr(feature = "native-tls", arg(conflicts_with_all(["native_tls_identity", "native_tls_password"])))]
     rustls_cert: Option<PathBuf>,
@@ -22,7 +22,7 @@ pub struct ServerTls {
     ///
     /// Example: `--rustls-cert ./cert.pem --rustls-key ./key.pem`
     /// For development, try using mkcert
-    #[cfg(feature = "rustls")]
+    #[cfg(any(feature = "rustls", feature = "h3"))]
     #[arg(long, env, requires = "rustls_cert")]
     #[cfg_attr(feature = "native-tls", arg(conflicts_with_all(["native_tls_identity", "native_tls_password"])))]
     rustls_key: Option<PathBuf>,
@@ -50,6 +50,19 @@ impl ServerTls {
             None
         }
     }
+
+    #[cfg(feature = "h3")]
+    pub fn quic(&self) -> Option<trillium_quinn::QuicConfig> {
+        if let (Some(cert), Some(key)) = (&self.rustls_cert, &self.rustls_key) {
+            Some(trillium_quinn::QuicConfig::from_single_cert(
+                &fs::read(cert).unwrap(),
+                &fs::read(key).unwrap(),
+            ))
+        } else {
+            None
+        }
+    }
+
     #[cfg(feature = "native-tls")]
     pub fn native_tls_acceptor(&self) -> Option<trillium_native_tls::NativeTlsAcceptor> {
         if let (Some(id), Some(pass)) = (&self.native_tls_identity, &self.native_tls_password) {

@@ -5,98 +5,106 @@ authors = ["Jacob Rothstein <hi@jbr.me>"]
 description = "The trillium.rs cli"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/trillium-rs/trillium-cli"
 keywords = ["trillium"]
 categories = ["web-programming::http-server", "web-programming"]
 
 [features]
-default = ["serve", "client", "proxy", "rustls"]
+default = ["serve", "client", "proxy", "rustls", "h3"]
 serve = [
-  "dep:trillium",
-  "dep:trillium-logger",
-  "dep:trillium-static",
-  "dep:trillium-proxy",
-  "dep:trillium-client",
+        "dep:trillium",
+        "dep:trillium-logger",
+        "dep:trillium-static",
+        "dep:trillium-proxy",
+        "dep:trillium-client",
 ]
 dev-server = [
-  "dep:ansi-to-html",
-  "dep:async-io",
-  "dep:async-broadcast",
-  "dep:futures-lite",
-  "dep:serde",
-  "dep:serde_json",
-  "dep:trillium",
-  "dep:trillium-proxy",
-  "dep:trillium-router",
-  "dep:trillium-client",
-  "dep:trillium-websockets",
-  "dep:trillium-html-rewriter",
-  "dep:notify",
-  "dep:nix",
-  "dep:signal-hook",
-  "dep:libc",
+        "dep:ansi-to-html",
+        "dep:async-io",
+        "dep:async-broadcast",
+        "dep:futures-lite",
+        "dep:serde",
+        "dep:serde_json",
+        "dep:trillium",
+        "dep:trillium-proxy",
+        "dep:trillium-router",
+        "dep:trillium-client",
+        "dep:trillium-websockets",
+        "dep:trillium-html-rewriter",
+        "dep:notify",
+        "dep:nix",
+        "dep:signal-hook",
+        "dep:libc",
 ]
 client = [
-  "dep:async-fs",
-  "dep:blocking",
-  "dep:futures-lite",
-  "dep:serde_json",
-  "dep:trillium-client",
-  "dep:colored",
-  "dep:colored_json",
-  "dep:mime",
-  "dep:size",
+        "dep:async-fs",
+        "dep:blocking",
+        "dep:futures-lite",
+        "dep:serde_json",
+        "dep:trillium-client",
+        "dep:colored",
+        "dep:colored_json",
+        "dep:mime",
+        "dep:size",
 ]
 proxy = [
-  "dep:trillium",
-  "dep:trillium-proxy",
-  "dep:trillium-logger",
-  "dep:trillium-client",
+        "dep:trillium",
+        "dep:trillium-proxy",
+        "dep:trillium-logger",
+        "dep:trillium-client",
 ]
 native-tls = ["dep:trillium-native-tls"]
 rustls = ["dep:trillium-rustls"]
+h3 = ["dep:trillium-quinn"]
 
 [dependencies]
-ansi-to-html = { version = "0.2.1", optional = true }
-async-fs = { version = "2.1.1", optional = true }
-async-global-executor = "2.4.1"
-async-io = { version = "2.3.2", optional = true }
-blocking = { version = "1.5.1", optional = true }
-env_logger = "0.11.3"
-futures-lite = { version = "2.3.0", optional = true }
-log = "0.4.21"
-serde = { version = "1.0.198", features = ["derive"], optional = true }
-serde_json = { version = "1.0.116", optional = true }
-trillium = { version = "0.2.19", optional = true }
-trillium-native-tls = { version = "0.4.0", optional = true }
-trillium-rustls = { version = "0.8.0", optional = true }
-trillium-proxy = { version = "0.5.4", optional = true }
-trillium-router = { version = "0.4.1", optional = true }
-trillium-static = { version = "0.4.2", features = ["smol"], optional = true }
-trillium-websockets = { version = "0.6.5", features = [
-  "json",
+ansi-to-html = { version = "0.2.2", optional = true }
+async-fs = { version = "2.2.0", optional = true }
+async-global-executor = "3.1.0"
+async-io = { version = "2.6.0", optional = true }
+blocking = { version = "1.6.2", optional = true }
+env_logger = "0.11.10"
+futures-lite = { version = "2.6.1", optional = true }
+log = "0.4.29"
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+serde_json = { version = "1.0.149", optional = true }
+
+trillium = { version = "1.0.0-rc.1", optional = true}
+trillium-native-tls = { version = "0.5.0-rc.1", optional = true }
+trillium-rustls = { version = "0.10.0-rc.1", optional = true }
+trillium-proxy = { version = "0.6.0-rc.1", optional = true }
+trillium-router = { version = "0.5.0-rc.1", optional = true }
+trillium-static = { version = "0.5.0-rc.1", features = [
+        "smol",
 ], optional = true }
-trillium-smol = "0.4.1"
-trillium-client = { version = "0.6.1", features = ["json"], optional = true }
-trillium-logger = { version = "0.4.5", optional = true }
-trillium-html-rewriter = { version = "0.3.0", optional = true }
-clap = { version = "4.5.4", features = ["derive", "env"] }
-clap-verbosity-flag = "2.2.0"
-colored = { version = "2.1.0", optional = true }
+trillium-websockets = { version = "0.7.0-rc.1", features = [
+        "json",
+], optional = true }
+trillium-smol = { version = "0.5.0-rc.1" }
+trillium-client = { version = "0.7.0-rc.1", features = [
+        "sonic-rs",
+], optional = true }
+trillium-logger = { version = "0.5.0-rc.1", optional = true }
+trillium-html-rewriter = { version = "0.4.0-rc.1", optional = true }
+trillium-quinn = { version = "0.1.0-rc.1", optional = true, features = ["webpki-roots"] }
+
+clap = { version = "4.6.0", features = ["derive", "env"] }
+clap-verbosity-flag = "3.0.4"
+colored = { version = "3.1.1", optional = true }
 colored_json = { version = "5.0.0", optional = true }
 mime = { version = "0.3.17", optional = true }
-size = { version = "0.4.1", optional = true }
-async-broadcast = { version = "0.7.0", optional = true }
+size = { version = "0.5.0", optional = true }
+async-broadcast = { version = "0.7.2", optional = true }
 
 [target.'cfg(unix)'.dependencies]
-signal-hook = { version = "0.3.17", optional = true }
-libc = { version = "0.2.153", optional = true }
-nix = { version = "0.29.0", default-features = false, features = [
-  "signal",
-  "process",
+signal-hook = { version = "0.4.4", optional = true }
+libc = { version = "0.2.184", optional = true }
+nix = { version = "0.31.2", default-features = false, features = [
+        "signal",
+        "process",
 ], optional = true }
-notify = { version = "6.1.1", optional = true }
+notify = { version = "8.2.0", optional = true }
 
 [lib]
 doc = false
