@@ -1,5 +1,5 @@
 use crate::{
-    client_tls::{parse_url, ClientTls},
+    client_tls::{ClientTls, parse_url},
     server_tls::ServerTls,
 };
 use clap::{Parser, ValueEnum};
@@ -7,11 +7,11 @@ use std::fmt::Debug;
 use trillium::{Conn, Method, Status};
 use trillium_logger::Logger;
 use trillium_proxy::{
+    ForwardProxyConnect, Proxy, Url,
     upstream::{
         ConnectionCounting, ForwardProxy, IntoUpstreamSelector, RandomSelector, RoundRobin,
         UpstreamSelector,
     },
-    Client, ForwardProxyConnect, Proxy, Url,
 };
 use trillium_smol::ClientConfig;
 
@@ -110,13 +110,10 @@ impl ProxyCli {
             } else {
                 None
             },
-            Proxy::new(
-                Client::from(self.client_tls).with_default_pool(),
-                self.build_upstream(),
-            )
-            .with_via_pseudonym("trillium-proxy")
-            .with_websocket_upgrades()
-            .proxy_not_found(),
+            Proxy::new(self.client_tls, self.build_upstream())
+                .with_via_pseudonym("trillium-proxy")
+                .with_websocket_upgrades()
+                .proxy_not_found(),
         );
 
         let config = trillium_smol::config()
@@ -125,6 +122,12 @@ impl ProxyCli {
 
         #[cfg(feature = "rustls")]
         if let Some(acceptor) = self.server_tls.rustls_acceptor() {
+            #[cfg(feature = "h3")]
+            if let Some(quic) = self.server_tls.quic() {
+                config.with_acceptor(acceptor).with_quic(quic).run(server);
+                return;
+            }
+
             config.with_acceptor(acceptor).run(server);
             return;
         }

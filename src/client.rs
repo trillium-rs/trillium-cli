@@ -1,4 +1,4 @@
-use crate::client_tls::{parse_url, ClientTls};
+use crate::client_tls::{ClientTls, parse_url};
 use blocking::Unblock;
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
@@ -8,7 +8,7 @@ use std::{
     io::{ErrorKind, IsTerminal},
     path::PathBuf,
 };
-use trillium_client::{Body, Client, Conn, Error, Headers, Method, Status, Url};
+use trillium_client::{Body, Client, Conn, Error, Headers, Method, Status, Url, Version};
 
 #[derive(Parser, Debug)]
 pub struct ClientCli {
@@ -54,6 +54,12 @@ pub struct ClientCli {
     #[arg(short, long, verbatim_doc_comment, value_enum, default_value_t)]
     tls: ClientTls,
 
+    /// http version
+    ///
+    ///
+    #[arg(long, verbatim_doc_comment, value_enum, default_value_t)]
+    http_version: HttpVersion,
+
     /// set the log level. add more flags for more verbosity
     ///
     /// example:
@@ -62,11 +68,54 @@ pub struct ClientCli {
     verbose: Verbosity,
 }
 
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, clap::ValueEnum, Default)]
+#[non_exhaustive]
+pub enum HttpVersion {
+    /// HTTP/0.9
+    #[value(name = "0.9", alias = "http/0.9", alias = "HTTP/0.9")]
+    Http0_9,
+
+    /// HTTP/1.0
+    #[value(name = "1.0", alias = "http/1.0", alias = "HTTP/1.0")]
+    Http1_0,
+
+    /// HTTP/1.1
+    #[value(
+        name = "1.1",
+        alias = "http/1.1",
+        alias = "HTTP/1.1",
+        alias = "1",
+        alias = "http/1",
+        alias = "HTTP/1"
+    )]
+    #[default]
+    Http1_1,
+
+    /// HTTP/3
+    #[cfg(feature = "h3")]
+    #[value(name = "3", alias = "http/3", alias = "HTTP/3")]
+    Http3,
+}
+
+impl From<HttpVersion> for Version {
+    fn from(value: HttpVersion) -> Self {
+        match value {
+            HttpVersion::Http0_9 => Version::Http0_9,
+            HttpVersion::Http1_0 => Version::Http1_0,
+            HttpVersion::Http1_1 => Version::Http1_1,
+            #[cfg(feature = "h3")]
+            HttpVersion::Http3 => Version::Http3,
+        }
+    }
+}
+
 impl ClientCli {
     async fn build(&self) -> Conn {
         let client = Client::from(self.tls);
         log::trace!("{}", self.url.as_str());
         let mut conn = client.build_conn(self.method, self.url.clone());
+        conn.set_http_version(self.http_version.into());
+        log::trace!("{conn:#?}");
 
         conn.request_headers_mut().extend(self.headers.clone());
 
@@ -77,11 +126,11 @@ impl ClientCli {
 
             let metadata = file.metadata().await.unwrap();
 
-            conn.set_request_body(Body::new_streaming(file, Some(metadata.len())))
+            conn.set_request_body(Body::new_streaming(file, Some(metadata.len())));
         } else if let Some(body) = &self.body {
-            conn.set_request_body(body.clone())
+            conn.set_request_body(body.clone());
         } else if !std::io::stdin().is_terminal() {
-            conn.set_request_body(Body::new_streaming(Unblock::new(std::io::stdin()), None))
+            conn.set_request_body(Body::new_streaming(Unblock::new(std::io::stdin()), None));
         }
 
         conn

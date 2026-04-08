@@ -15,7 +15,7 @@ use std::{
     io::{self, Write},
     path::PathBuf,
     process::Command,
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
     thread,
     time::Duration,
 };
@@ -187,59 +187,63 @@ impl DevServer {
         {
             let child_id = child_id.clone();
             let broadcaster = broadcast_tx.clone();
-            thread::spawn(move || loop {
-                child.wait().unwrap();
-                log::info!("shut down, restarting");
-                child = run.spawn().unwrap();
-                *child_id.lock().unwrap() = child.id();
-                thread::sleep(Duration::from_millis(500));
-                async_io::block_on(broadcaster.broadcast_direct(Event::Restarted)).unwrap();
+            thread::spawn(move || {
+                loop {
+                    child.wait().unwrap();
+                    log::info!("shut down, restarting");
+                    child = run.spawn().unwrap();
+                    *child_id.lock().unwrap() = child.id();
+                    thread::sleep(Duration::from_millis(500));
+                    async_io::block_on(broadcaster.broadcast_direct(Event::Restarted)).unwrap();
+                }
             });
         }
         {
             let broadcaster = broadcast_tx.clone();
-            thread::spawn(move || loop {
-                let event = rx.recv().unwrap();
-                async_io::block_on(broadcaster.broadcast_direct(event.clone())).unwrap();
-                match event {
-                    Event::BinaryChanged => {
-                        log::info!("attempting to send {}", &signal);
-                        signal::kill(
-                            Pid::from_raw((*child_id.lock().unwrap()).try_into().unwrap()),
-                            signal,
-                        )
-                        .unwrap();
-                    }
-                    Event::Rebuild => {
-                        log::info!("building...");
-                        let output = build.output();
-                        match output {
-                            Ok(ok) => {
-                                if ok.status.success() {
-                                    log::debug!("{}", String::from_utf8_lossy(&ok.stdout[..]));
-                                    async_io::block_on(
-                                        broadcaster.broadcast_direct(Event::BuildSuccess),
-                                    )
-                                    .ok();
-                                } else {
-                                    io::stderr().write_all(&ok.stderr).unwrap();
-                                    async_io::block_on(
-                                        broadcaster.broadcast_direct(Event::CompileError {
-                                            error: ansi_to_html::convert(&String::from_utf8_lossy(
-                                                &ok.stderr,
-                                            ))
-                                            .unwrap(),
-                                        }),
-                                    )
-                                    .ok();
+            thread::spawn(move || {
+                loop {
+                    let event = rx.recv().unwrap();
+                    async_io::block_on(broadcaster.broadcast_direct(event.clone())).unwrap();
+                    match event {
+                        Event::BinaryChanged => {
+                            log::info!("attempting to send {}", &signal);
+                            signal::kill(
+                                Pid::from_raw((*child_id.lock().unwrap()).try_into().unwrap()),
+                                signal,
+                            )
+                            .unwrap();
+                        }
+                        Event::Rebuild => {
+                            log::info!("building...");
+                            let output = build.output();
+                            match output {
+                                Ok(ok) => {
+                                    if ok.status.success() {
+                                        log::debug!("{}", String::from_utf8_lossy(&ok.stdout[..]));
+                                        async_io::block_on(
+                                            broadcaster.broadcast_direct(Event::BuildSuccess),
+                                        )
+                                        .ok();
+                                    } else {
+                                        io::stderr().write_all(&ok.stderr).unwrap();
+                                        async_io::block_on(
+                                            broadcaster.broadcast_direct(Event::CompileError {
+                                                error: ansi_to_html::convert(
+                                                    &String::from_utf8_lossy(&ok.stderr),
+                                                )
+                                                .unwrap(),
+                                            }),
+                                        )
+                                        .ok();
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("{:?}", e);
                                 }
                             }
-                            Err(e) => {
-                                eprintln!("{:?}", e);
-                            }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
             });
         }
@@ -253,8 +257,8 @@ mod proxy_app {
     use trillium::{Conn, KnownHeaderName, State};
     use trillium_client::Client;
     use trillium_html_rewriter::{
-        html::{element, html_content::ContentType, Settings},
         HtmlRewriter,
+        html::{Settings, element, html_content::ContentType},
     };
     use trillium_proxy::Proxy;
     use trillium_router::Router;
@@ -263,7 +267,7 @@ mod proxy_app {
 
     pub fn run(proxy: String, rx: async_broadcast::Receiver<Event>) {
         static PORT: u16 = 8082;
-        let client = Client::new(ClientConfig::default().with_nodelay(true)).with_default_pool();
+        let client = Client::new(ClientConfig::default().with_nodelay(true));
 
         trillium_smol::config()
             .without_signals()
@@ -304,7 +308,7 @@ mod proxy_app {
                         Ok(())
                     })],
 
-                    ..Settings::default()
+                    ..Settings::new_send()
                 }),
             ));
     }

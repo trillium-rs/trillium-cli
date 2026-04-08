@@ -16,10 +16,18 @@ impl From<ClientTls> for Client {
     fn from(value: ClientTls) -> Self {
         match value {
             ClientTls::None => Client::new(ClientConfig::default()),
-            #[cfg(feature = "rustls")]
+
+            #[cfg(all(feature = "rustls", feature = "h3"))]
+            ClientTls::Rustls => Client::new_with_quic(
+                trillium_rustls::RustlsConfig::<ClientConfig>::default(),
+                trillium_quinn::ClientQuicConfig::with_webpki_roots(),
+            ),
+
+            #[cfg(all(feature = "rustls", not(feature = "h3")))]
             ClientTls::Rustls => {
                 Client::new(trillium_rustls::RustlsConfig::<ClientConfig>::default())
             }
+
             #[cfg(feature = "native-tls")]
             ClientTls::Native => {
                 Client::new(trillium_native_tls::NativeTlsConfig::<ClientConfig>::default())
