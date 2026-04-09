@@ -6,6 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/trillium-rs/trillium-cli/compare/v0.3.8...v0.4.0) - 2026-04-09
+
+### Fixed
+
+- *(deps)* update rust crate trillium-rustls to v0.8.1
+- *(deps)* update rust crate clap to v4.5.7
+- *(deps)* update rust crate clap to v4.5.6
+
+### Other
+
+- *(deps)* update lukka/get-cmake action to v4
+- *(deps)* update actions/checkout action to v6
+- *(deps)* update github/codeql-action action to v4
+- *(deps)* lock file maintenance
+- *(deps)* update swatinem/rust-cache action to v2.9.1
+- *(deps)* update actions/cache action to v5
+- *(deps)* update lukka/get-cmake action to v3.31.6
+- *(deps)* [**breaking**] upgrade to trillium@1-rc
+- *(deps)* update lukka/get-cmake action to v3.29.6
+- *(deps)* update lukka/get-cmake action to v3.29.4
+
 ## [0.3.8](https://github.com/trillium-rs/trillium-cli/compare/v0.3.7...v0.3.8) - 2024-05-30
 
 ### Fixed
