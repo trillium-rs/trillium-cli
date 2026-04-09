@@ -138,10 +138,15 @@ impl ClientCli {
 
     async fn output_body(&self, conn: &mut Conn) {
         if let Some(file) = &self.output_file {
-            let filename = file
-                .clone()
-                .unwrap_or_else(|| conn.url().path_segments().unwrap().last().unwrap().into());
-            if filename.to_str().map_or(true, |f| f.is_empty()) {
+            let filename = file.clone().unwrap_or_else(|| {
+                conn.url()
+                    .path_segments()
+                    .unwrap()
+                    .next_back()
+                    .unwrap()
+                    .into()
+            });
+            if filename.to_str().is_none_or(|f| f.is_empty()) {
                 eprintln!("specify a filename for this url");
                 std::process::exit(-1);
             }
@@ -237,6 +242,11 @@ impl ClientCli {
                         println!("{}: {}", "Url".italic().bright_blue(), conn.url().as_str());
                         println!(
                             "{}: {}",
+                            "Version".italic().bright_blue(),
+                            conn.http_version().as_str().bold()
+                        );
+                        println!(
+                            "{}: {}",
                             "Method".italic().bright_blue(),
                             conn.method().as_str().bold()
                         );
@@ -254,7 +264,18 @@ impl ClientCli {
                 }
             }
 
-            self.output_body(&mut conn).await
+            self.output_body(&mut conn).await;
+
+            if std::io::stdout().is_terminal()
+                && self
+                    .verbose
+                    .log_level()
+                    .is_some_and(|level| level >= Level::Warn)
+                && let Some(trailers) = conn.response_trailers()
+            {
+                println!("\n{}", "Response Trailers".bold().underline());
+                print_headers(trailers);
+            }
         });
     }
 }
