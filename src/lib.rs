@@ -7,6 +7,8 @@
     unused_qualifications
 )]
 
+#[cfg(feature = "bench")]
+pub(crate) mod bench;
 #[cfg(feature = "client")]
 pub(crate) mod client;
 #[cfg(any(feature = "proxy", feature = "client", feature = "serve"))]
@@ -38,6 +40,10 @@ pub enum Cli {
     /// Make http requests using the trillium client
     Client(client::ClientCli),
 
+    #[cfg(feature = "bench")]
+    /// Generate http load and report latency/throughput statistics
+    Bench(bench::BenchCli),
+
     #[cfg(feature = "proxy")]
     /// Run a http proxy
     Proxy(proxy::ProxyCli),
@@ -53,6 +59,8 @@ impl Cli {
             DevServer(d) => d.run(),
             #[cfg(feature = "client")]
             Client(c) => c.run(),
+            #[cfg(feature = "bench")]
+            Bench(b) => b.run(),
             #[cfg(feature = "proxy")]
             Proxy(p) => p.run(),
         }
