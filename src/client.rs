@@ -55,8 +55,6 @@ pub struct ClientCli {
     tls: ClientTls,
 
     /// http version
-    ///
-    ///
     #[arg(long, verbatim_doc_comment, value_enum, default_value_t)]
     http_version: HttpVersion,
 
@@ -91,6 +89,10 @@ pub enum HttpVersion {
     #[default]
     Http1_1,
 
+    /// HTTP/2
+    #[value(name = "2", alias = "http/2", alias = "HTTP/2")]
+    Http2,
+
     /// HTTP/3
     #[cfg(feature = "h3")]
     #[value(name = "3", alias = "http/3", alias = "HTTP/3")]
@@ -103,6 +105,7 @@ impl From<HttpVersion> for Version {
             HttpVersion::Http0_9 => Version::Http0_9,
             HttpVersion::Http1_0 => Version::Http1_0,
             HttpVersion::Http1_1 => Version::Http1_1,
+            HttpVersion::Http2 => Version::Http2,
             #[cfg(feature = "h3")]
             HttpVersion::Http3 => Version::Http3,
         }
@@ -112,10 +115,8 @@ impl From<HttpVersion> for Version {
 impl ClientCli {
     async fn build(&self) -> Conn {
         let client = Client::from(self.tls);
-        log::trace!("{}", self.url.as_str());
         let mut conn = client.build_conn(self.method, self.url.clone());
         conn.set_http_version(self.http_version.into());
-        log::trace!("{conn:#?}");
 
         conn.request_headers_mut().extend(self.headers.clone());
 
@@ -201,7 +202,20 @@ impl ClientCli {
     pub fn run(self) {
         futures_lite::future::block_on(async move {
             env_logger::Builder::new()
-                .filter_level(self.verbose.log_level_filter())
+                .parse_filters(&format!(
+                    "{},quinn=off,quinn_proto=off,rustls=off,tracing=off",
+                    self.verbose.log_level_filter()
+                ))
+                .format(|buf, record| {
+                    use std::io::Write;
+                    writeln!(
+                        buf,
+                        "[{} {}] {}",
+                        record.module_path().unwrap_or_default().dimmed(),
+                        record.level().as_str().dimmed(),
+                        record.args()
+                    )
+                })
                 .init();
 
             let mut conn = self.build().await;
@@ -288,13 +302,13 @@ fn print_headers(headers: &Headers) {
     }
 }
 
-fn parse_method_case_insensitive(src: &str) -> Result<Method, String> {
+pub(crate) fn parse_method_case_insensitive(src: &str) -> Result<Method, String> {
     src.to_uppercase()
         .parse()
         .map_err(|_| format!("unrecognized method {}", src))
 }
 
-fn parse_header(s: &str) -> Result<(String, String), String> {
+pub(crate) fn parse_header(s: &str) -> Result<(String, String), String> {
     let pos = s
         .find('=')
         .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{}`", s))?;

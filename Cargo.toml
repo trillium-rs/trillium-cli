@@ -1,3 +1,4 @@
+
 [package]
 name = "trillium-cli"
 version = "0.3.8"
@@ -11,13 +12,14 @@ keywords = ["trillium"]
 categories = ["web-programming::http-server", "web-programming"]
 
 [features]
-default = ["serve", "client", "proxy", "rustls", "h3"]
+default = ["serve", "client", "bench", "proxy", "rustls", "h3"]
 serve = [
         "dep:trillium",
         "dep:trillium-logger",
         "dep:trillium-static",
         "dep:trillium-proxy",
         "dep:trillium-client",
+        "dep:colored",
 ]
 dev-server = [
         "dep:ansi-to-html",
@@ -48,6 +50,16 @@ client = [
         "dep:mime",
         "dep:size",
 ]
+bench = [
+        "client",
+        "dep:trillium-http",
+        "dep:hdrhistogram",
+        "dep:indicatif",
+        "dep:humantime",
+        "dep:async-channel",
+        "dep:async-io",
+        "dep:fastrand",
+]
 proxy = [
         "dep:trillium",
         "dep:trillium-proxy",
@@ -70,26 +82,32 @@ log = "0.4.29"
 serde = { version = "1.0.228", features = ["derive"], optional = true }
 serde_json = { version = "1.0.149", optional = true }
 
-trillium = { version = "1.0.0-rc.1", optional = true}
-trillium-native-tls = { version = "0.5.0-rc.1", optional = true }
-trillium-rustls = { version = "0.10.0-rc.1", optional = true }
-trillium-proxy = { version = "0.6.0-rc.1", optional = true }
-trillium-router = { version = "0.5.0-rc.1", optional = true }
-trillium-static = { version = "0.5.0-rc.1", features = [
+trillium = { version = "1.1.0", optional = true}
+trillium-native-tls = { version = "0.6.0", optional = true }
+trillium-rustls = { version = "0.11.1", optional = true }
+trillium-proxy = { version = "0.7.0", optional = true }
+trillium-router = { version = "0.5.0", optional = true }
+trillium-static = { version = "0.5.0", features = [
         "smol",
 ], optional = true }
-trillium-websockets = { version = "0.7.0-rc.1", features = [
+trillium-websockets = { version = "0.8.0", features = [
         "json",
 ], optional = true }
-trillium-smol = { version = "0.5.0-rc.1" }
-trillium-client = { version = "0.7.0-rc.1", features = [
+trillium-smol = { version = "0.6.1" }
+trillium-client = { version = "0.8.2", features = [
         "sonic-rs",
 ], optional = true }
-trillium-logger = { version = "0.5.0-rc.1", optional = true }
+trillium-http = { version = "1.1.0", optional = true }
+hdrhistogram = { version = "7.5.4", optional = true }
+indicatif = { version = "0.18.4", optional = true }
+humantime = { version = "2.3.0", optional = true }
+async-channel = { version = "2.5.0", optional = true }
+fastrand = { version = "2.4.1", optional = true }
+trillium-logger = { version = "0.5.0", optional = true }
 trillium-html-rewriter = { version = "0.4.0-rc.1", optional = true }
-trillium-quinn = { version = "0.1.0-rc.1", optional = true, features = ["webpki-roots"] }
+trillium-quinn = { version = "0.1.2", optional = true, features = ["webpki-roots"] }
 
-clap = { version = "4.6.0", features = ["derive", "env"] }
+clap = { version = "4.6.1", features = ["derive", "env"] }
 clap-verbosity-flag = "3.0.4"
 colored = { version = "3.1.1", optional = true }
 colored_json = { version = "5.0.0", optional = true }
@@ -99,7 +117,7 @@ async-broadcast = { version = "0.7.2", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = { version = "0.4.4", optional = true }
-libc = { version = "0.2.184", optional = true }
+libc = { version = "0.2.186", optional = true }
 nix = { version = "0.31.2", default-features = false, features = [
         "signal",
         "process",
@@ -115,3 +133,19 @@ doc = false
 
 [profile.release]
 lto = "fat"
+
+
+# [patch.crates-io]
+# trillium = { path = "../trillium/trillium" }
+# trillium-native-tls = { path = "../trillium/native-tls" }
+# trillium-rustls = { path = "../trillium/rustls" }
+# trillium-proxy = { path = "../trillium/proxy" }
+# trillium-router = { path = "../trillium/router" }
+# trillium-static = { path = "../trillium/static" }
+# trillium-websockets = { path = "../trillium/websockets" }
+# trillium-smol = { path = "../trillium/smol" }
+# trillium-client = { path = "../trillium/client" }
+# trillium-http = { path = "../trillium/http" }
+# trillium-logger = { path = "../trillium/logger" }
+# trillium-html-rewriter = { path = "../trillium-html-rewriter" }
+# trillium-quinn = { path = "../trillium/quinn" }

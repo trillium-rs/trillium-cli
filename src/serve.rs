@@ -4,6 +4,7 @@ use crate::{
 };
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
+use colored::Colorize;
 use std::{fmt::Debug, io::Write};
 use trillium_logger::Logger;
 use trillium_proxy::{Client, Proxy, Url};
@@ -55,8 +56,18 @@ pub struct StaticCli {
 impl StaticCli {
     pub fn run(self) {
         env_logger::Builder::new()
-            .filter_level(self.verbose.log_level_filter())
-            .format(|buf, record| writeln!(buf, "{}", record.args()))
+            .parse_filters(&format!(
+                "{},quinn=off,quinn_proto=off",
+                self.verbose.log_level_filter()
+            ))
+            .format(|buf, record| {
+                writeln!(
+                    buf,
+                    "[{}] {}",
+                    record.module_path().unwrap_or_default().dimmed(),
+                    record.args()
+                )
+            })
             .init();
 
         let path = self.root.clone();
