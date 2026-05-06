@@ -1,6 +1,6 @@
 use crate::{
-    client_tls::{ClientTls, parse_url},
     server_tls::ServerTls,
+    tls::{Tls, parse_url},
 };
 use clap::{Parser, ValueEnum};
 use std::fmt::Debug;
@@ -47,7 +47,7 @@ pub struct ProxyCli {
     ///
     /// required if the upstream url is https.
     #[arg(short, long, verbatim_doc_comment, default_value_t, value_enum)]
-    client_tls: ClientTls,
+    client_tls: Tls,
 
     #[command(flatten)]
     verbose: clap_verbosity_flag::Verbosity,

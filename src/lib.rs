@@ -11,14 +11,19 @@
 pub(crate) mod bench;
 #[cfg(feature = "client")]
 pub(crate) mod client;
-#[cfg(any(feature = "proxy", feature = "client", feature = "serve"))]
-pub(crate) mod client_tls;
 #[cfg(all(unix, feature = "dev-server"))]
 pub(crate) mod dev_server;
 #[cfg(feature = "proxy")]
 pub(crate) mod proxy;
 #[cfg(feature = "serve")]
 pub(crate) mod serve;
+#[cfg(any(
+    feature = "proxy",
+    feature = "client",
+    feature = "serve",
+    feature = "bench"
+))]
+pub(crate) mod tls;
 use clap::Parser;
 
 pub fn main() {
