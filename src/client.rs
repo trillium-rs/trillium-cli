@@ -1,4 +1,4 @@
-use crate::client_tls::{ClientTls, parse_url};
+use crate::tls::{Tls, parse_url};
 use blocking::Unblock;
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
@@ -52,7 +52,7 @@ pub struct ClientCli {
     ///
     /// requests to https:// urls with `none` will fail
     #[arg(short, long, verbatim_doc_comment, value_enum, default_value_t)]
-    tls: ClientTls,
+    tls: Tls,
 
     /// http version
     #[arg(long, verbatim_doc_comment, value_enum, default_value_t)]

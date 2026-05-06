@@ -2,36 +2,65 @@ use trillium_client::{Client, Url};
 use trillium_smol::ClientConfig;
 
 #[derive(clap::ValueEnum, Debug, Eq, PartialEq, Clone, Copy, Default)]
-pub enum ClientTls {
+pub enum Tls {
+    #[cfg_attr(
+        all(
+            not(feature = "native-tls"),
+            not(feature = "rustls"),
+            not(feature = "openssl")
+        ),
+        default
+    )]
     None,
+
     #[cfg(feature = "rustls")]
     #[cfg_attr(feature = "rustls", default)]
     Rustls,
+
     #[cfg(feature = "native-tls")]
-    #[cfg_attr(all(feature = "native-tls", not(feature = "rustls")), default)]
+    #[cfg_attr(
+        all(
+            feature = "native-tls",
+            not(feature = "rustls"),
+            not(feature = "openssl")
+        ),
+        default
+    )]
     Native,
+
+    #[cfg(feature = "openssl")]
+    #[cfg_attr(
+        all(
+            feature = "openssl",
+            not(feature = "rustls"),
+            not(feature = "native-tls")
+        ),
+        default
+    )]
+    Openssl,
 }
 
-impl From<ClientTls> for Client {
-    fn from(value: ClientTls) -> Self {
+impl From<Tls> for Client {
+    fn from(value: Tls) -> Self {
         match value {
-            ClientTls::None => Client::new(ClientConfig::default()),
+            Tls::None => Client::new(ClientConfig::default()),
 
             #[cfg(all(feature = "rustls", feature = "h3"))]
-            ClientTls::Rustls => Client::new_with_quic(
+            Tls::Rustls => Client::new_with_quic(
                 trillium_rustls::RustlsConfig::<ClientConfig>::default(),
                 trillium_quinn::ClientQuicConfig::with_webpki_roots(),
             ),
 
             #[cfg(all(feature = "rustls", not(feature = "h3")))]
-            ClientTls::Rustls => {
-                Client::new(trillium_rustls::RustlsConfig::<ClientConfig>::default())
-            }
+            Tls::Rustls => Client::new(trillium_rustls::RustlsConfig::<ClientConfig>::default()),
 
             #[cfg(feature = "native-tls")]
-            ClientTls::Native => {
+            Tls::Native => {
                 Client::new(trillium_native_tls::NativeTlsConfig::<ClientConfig>::default())
             }
+
+            #[cfg(feature = "openssl")]
+            Tls::Openssl => Client::new(trillium_openssl::OpenSslConfig::<ClientConfig>::default()),
         }
     }
 }

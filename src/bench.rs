@@ -1,6 +1,6 @@
 use crate::{
     client::{HttpVersion, parse_header, parse_method_case_insensitive},
-    client_tls::{ClientTls, parse_url},
+    tls::{Tls, parse_url},
 };
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
@@ -89,7 +89,7 @@ pub struct BenchCli {
 
     /// tls implementation
     #[arg(short, long, value_enum, default_value_t)]
-    tls: ClientTls,
+    tls: Tls,
 
     /// disable http/1.1 connection reuse
     #[arg(long)]
