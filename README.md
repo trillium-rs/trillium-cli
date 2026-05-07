@@ -7,16 +7,17 @@ Usage: trillium <COMMAND>
 Commands:
   serve   Static file server and reverse proxy
   client  Make http requests using the trillium client
+  bench   Generate http load and report latency/throughput statistics
   proxy   Run a http proxy
   help    Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help
   -V, --version  Print version
-
 ```
 
 # HTTP Client
+
 ```
 $ trillium help client
 Make http requests using the trillium client
@@ -65,6 +66,18 @@ Options:
           [default: rustls]
           [possible values: none, rustls]
 
+      --http-version <HTTP_VERSION>
+          http version
+
+          Possible values:
+          - 0.9: HTTP/0.9
+          - 1.0: HTTP/1.0
+          - 1.1: HTTP/1.1
+          - 2:   HTTP/2
+          - 3:   HTTP/3
+          
+          [default: 1.1]
+
   -v, --verbose...
           Increase logging verbosity
 
@@ -75,6 +88,7 @@ Options:
           Print help (see a summary with '-h')
 ```
 # Proxy (reverse and forward)
+
 ```
 $ trillium help proxy
 Run a http proxy
@@ -103,23 +117,28 @@ Options:
           [env: PORT=]
           [default: 8080]
 
-      --rustls-cert <RUSTLS_CERT>
-          Path to a tls certificate for trillium_rustls
+      --cert <CERT>
+          Path to a tls certificate file
           
-          This will panic unless rustls_key is also provided. Providing both rustls_key and rustls_cert enables tls.
+          This will fail unless key is also provided. Providing both cert and key enables tls.
           
-          Example: `--rustls-cert ./cert.pem --rustls-key ./key.pem` For development, try using mkcert
+          Example: `--cert ./cert.pem --key ./key.pem` For development, try using mkcert or rcgen
           
-          [env: RUSTLS_CERT=]
+          [env: CERT=]
 
-      --rustls-key <RUSTLS_KEY>
-          The path to a tls key file for trillium_rustls
+      --key <KEY>
+          The path to a tls key file
           
-          This will panic unless rustls_cert is also provided. Providing both rustls_key and rustls_cert enables tls.
+          This will fail unless cert is also provided. Providing both cert and key enables tls.
           
-          Example: `--rustls-cert ./cert.pem --rustls-key ./key.pem` For development, try using mkcert
+          Example: `--cert ./cert.pem --key ./key.pem` For development, try using mkcert or rcgen
           
-          [env: RUSTLS_KEY=]
+          [env: KEY=]
+
+      --tls <TLS>
+          [env: TLS=]
+          [default: rustls]
+          [possible values: none, rustls]
 
   -c, --client-tls <CLIENT_TLS>
           tls implementation
@@ -138,7 +157,9 @@ Options:
   -h, --help
           Print help (see a summary with '-h')
 ```
-# Static file server with optional reverse-proxy passthrough
+
+# Static file server
+
 ```
 $ trillium help serve
 Static file server and reverse proxy
@@ -151,7 +172,7 @@ Arguments:
           
           Defaults to the current working directory
           
-          [default: /Users/jbr/code/futures-rustls]
+          [default: {your working directory}]
 
 Options:
   -o, --host <HOST>
@@ -166,23 +187,28 @@ Options:
           [env: PORT=]
           [default: 8080]
 
-      --rustls-cert <RUSTLS_CERT>
-          Path to a tls certificate for trillium_rustls
+      --cert <CERT>
+          Path to a tls certificate file
           
-          This will panic unless rustls_key is also provided. Providing both rustls_key and rustls_cert enables tls.
+          This will fail unless key is also provided. Providing both cert and key enables tls.
           
-          Example: `--rustls-cert ./cert.pem --rustls-key ./key.pem` For development, try using mkcert
+          Example: `--cert ./cert.pem --key ./key.pem` For development, try using mkcert or rcgen
           
-          [env: RUSTLS_CERT=]
+          [env: CERT=]
 
-      --rustls-key <RUSTLS_KEY>
-          The path to a tls key file for trillium_rustls
+      --key <KEY>
+          The path to a tls key file
           
-          This will panic unless rustls_cert is also provided. Providing both rustls_key and rustls_cert enables tls.
+          This will fail unless cert is also provided. Providing both cert and key enables tls.
           
-          Example: `--rustls-cert ./cert.pem --rustls-key ./key.pem` For development, try using mkcert
+          Example: `--cert ./cert.pem --key ./key.pem` For development, try using mkcert or rcgen
           
-          [env: RUSTLS_KEY=]
+          [env: KEY=]
+
+      --tls <TLS>
+          [env: TLS=]
+          [default: rustls]
+          [possible values: none, rustls]
 
   -f, --forward <FORWARD>
           Host to forward (reverse proxy) not-found requests to
@@ -197,6 +223,127 @@ Options:
 
   -i, --index <INDEX>
           [env: INDEX=]
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+# Load generation / testing
+
+```
+$ trillium help bench
+Generate http load and report latency/throughput statistics
+
+Usage: trillium bench [OPTIONS] <URL>
+
+Arguments:
+  <URL>
+          target URL to benchmark
+
+Options:
+  -m, --method <METHOD>
+          HTTP method
+          
+          [default: GET]
+
+  -c, --connections <CONNECTIONS>
+          number of concurrent connections (closed-loop) or initial pool size (open-loop)
+          
+          [default: 50]
+
+  -d, --duration <DURATION>
+          total test duration (e.g. 10s, 1m, 30s500ms)
+          
+          mutually exclusive with --requests; default is 10s when neither is specified.
+
+  -n, --requests <REQUESTS>
+          total number of requests to send (closed-loop only)
+
+  -r, --rate <RATE>
+          target rate in requests per second; switches to open-loop scheduling
+
+      --pacing <PACING>
+          open-loop pacing strategy
+
+          Possible values:
+          - uniform: fixed inter-arrival interval = 1 / rate
+          - poisson: exponentially-distributed inter-arrival times with mean 1 / rate
+          
+          [default: uniform]
+
+      --max-concurrency <MAX_CONCURRENCY>
+          in open-loop mode, hard cap on simultaneous in-flight requests
+          
+          scheduled tickets that would exceed this cap are dropped and counted as saturation.
+
+  -w, --warmup <WARMUP>
+          discard statistics collected during this initial period
+
+      --timeout <TIMEOUT>
+          per-request timeout
+
+  -H, --headers <HEADERS>
+          request headers in KEY=VALUE form, repeatable
+
+  -f, --file <FILE>
+          path to a file to use as the request body
+
+  -b, --body <BODY>
+          inline request body string
+
+      --body-size <BODY_SIZE>
+          synthesize a zero-filled request body of the given size (e.g. 4kb, 1mb)
+
+      --http-version <HTTP_VERSION>
+          http version
+
+          Possible values:
+          - 0.9: HTTP/0.9
+          - 1.0: HTTP/1.0
+          - 1.1: HTTP/1.1
+          - 2:   HTTP/2
+          - 3:   HTTP/3
+          
+          [default: 1.1]
+
+  -t, --tls <TLS>
+          tls implementation
+          
+          [default: rustls]
+          [possible values: none, rustls]
+
+      --no-keepalive
+          disable http/1.1 connection reuse
+
+      --response-buffer-len <RESPONSE_BUFFER_LEN>
+          HttpConfig: initial response buffer length (bytes)
+
+      --response-buffer-max-len <RESPONSE_BUFFER_MAX_LEN>
+          HttpConfig: maximum response buffer length under backpressure (bytes)
+
+      --head-max-len <HEAD_MAX_LEN>
+          HttpConfig: max length of the http head (request line + headers)
+
+      --copy-loops-per-yield <COPY_LOOPS_PER_YIELD>
+          HttpConfig: cooperative yield interval for the copy loop
+
+      --received-body-max-len <RECEIVED_BODY_MAX_LEN>
+          HttpConfig: maximum allowed received body length (bytes)
+
+      --json
+          emit the final report as JSON to stdout
+
+      --csv <CSV>
+          write per-request timing data as CSV to this path
+
+      --no-progress
+          suppress the live progress display even when stdout is a tty
 
   -v, --verbose...
           Increase logging verbosity
