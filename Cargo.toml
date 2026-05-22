@@ -81,7 +81,8 @@ grpc = ["dep:trillium-grpc-codegen"]
 openssl = ["dep:trillium-openssl"]
 native-tls = ["dep:trillium-native-tls"]
 rustls = ["dep:trillium-rustls"]
-h3 = ["dep:trillium-quinn"]
+# h3/QUIC requires TLS 1.3; trillium-quinn builds on rustls, so h3 implies rustls.
+h3 = ["dep:trillium-quinn", "rustls"]
 
 [dependencies]
 ansi-to-html = { version = "0.2.3", optional = true }

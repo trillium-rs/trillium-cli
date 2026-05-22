@@ -1,11 +1,19 @@
 use crate::tls::Tls;
 use clap::Args;
-#[cfg(unix)]
+#[cfg(all(unix, any(feature = "serve", feature = "proxy")))]
 use std::os::fd::AsFd;
-#[cfg(windows)]
+#[cfg(all(windows, any(feature = "serve", feature = "proxy")))]
 use std::os::windows::io::AsSocket;
+#[cfg(any(
+    feature = "native-tls",
+    feature = "openssl",
+    feature = "rustls",
+    feature = "h3"
+))]
 use std::{fs, path::PathBuf};
+#[cfg(any(feature = "serve", feature = "proxy"))]
 use trillium::Handler;
+#[cfg(any(feature = "serve", feature = "proxy"))]
 use trillium_server_common::UdpTransport;
 
 #[derive(Args, Debug, Clone, Default)]
@@ -46,17 +54,23 @@ pub struct ServerTls {
     tls: Tls,
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, any(feature = "serve", feature = "proxy")))]
 pub(crate) trait SocketTransport: UdpTransport + AsFd {}
-#[cfg(unix)]
+#[cfg(all(unix, any(feature = "serve", feature = "proxy")))]
 impl<T: UdpTransport + AsFd> SocketTransport for T {}
 
-#[cfg(windows)]
+#[cfg(all(windows, any(feature = "serve", feature = "proxy")))]
 pub(crate) trait SocketTransport: UdpTransport + AsSocket {}
-#[cfg(windows)]
+#[cfg(all(windows, any(feature = "serve", feature = "proxy")))]
 impl<T: UdpTransport + AsSocket> SocketTransport for T {}
 
 impl ServerTls {
+    #[cfg(any(
+        feature = "native-tls",
+        feature = "openssl",
+        feature = "rustls",
+        feature = "h3"
+    ))]
     fn cert_and_key(&self) -> Option<(Vec<u8>, Vec<u8>)> {
         Some((
             fs::read(self.cert.as_deref()?).ok()?,
@@ -64,6 +78,7 @@ impl ServerTls {
         ))
     }
 
+    #[cfg(any(feature = "serve", feature = "proxy"))]
     pub(crate) fn run_with_tls<S: trillium_server_common::Server>(
         &self,
         config: trillium_server_common::Config<S, ()>,
@@ -72,20 +87,19 @@ impl ServerTls {
         S::Runtime: Unpin,
         S::UdpTransport: SocketTransport,
     {
-        let quic = self.quic();
-
         match self.tls {
             Tls::None => {}
 
             #[cfg(feature = "rustls")]
             Tls::Rustls => {
                 if let Some(acceptor) = self.rustls_acceptor() {
-                    if let Some(quic) = quic {
+                    #[cfg(feature = "h3")]
+                    if let Some(quic) = self.quic() {
                         config.with_acceptor(acceptor).with_quic(quic).run(handler);
-                    } else {
-                        config.with_acceptor(acceptor).run(handler);
+                        return;
                     }
 
+                    config.with_acceptor(acceptor).run(handler);
                     return;
                 }
             }
@@ -93,12 +107,13 @@ impl ServerTls {
             #[cfg(feature = "openssl")]
             Tls::Openssl => {
                 if let Some(acceptor) = self.openssl_acceptor() {
-                    if let Some(quic) = quic {
+                    #[cfg(feature = "h3")]
+                    if let Some(quic) = self.quic() {
                         config.with_acceptor(acceptor).with_quic(quic).run(handler);
-                    } else {
-                        config.with_acceptor(acceptor).run(handler);
+                        return;
                     }
 
+                    config.with_acceptor(acceptor).run(handler);
                     return;
                 }
             }
@@ -106,12 +121,13 @@ impl ServerTls {
             #[cfg(feature = "native-tls")]
             Tls::Native => {
                 if let Some(acceptor) = self.native_tls_acceptor() {
-                    if let Some(quic) = quic {
+                    #[cfg(feature = "h3")]
+                    if let Some(quic) = self.quic() {
                         config.with_acceptor(acceptor).with_quic(quic).run(handler);
-                    } else {
-                        config.with_acceptor(acceptor).run(handler);
+                        return;
                     }
 
+                    config.with_acceptor(acceptor).run(handler);
                     return;
                 }
             }

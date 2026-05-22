@@ -183,24 +183,6 @@ impl ProxyCli {
             .with_port(self.port)
             .with_host(&self.host);
 
-        #[cfg(feature = "rustls")]
-        if let Some(acceptor) = self.server_tls.rustls_acceptor() {
-            #[cfg(feature = "h3")]
-            if let Some(quic) = self.server_tls.quic() {
-                config.with_acceptor(acceptor).with_quic(quic).run(server);
-                return;
-            }
-
-            config.with_acceptor(acceptor).run(server);
-            return;
-        }
-
-        #[cfg(feature = "native-tls")]
-        if let Some(acceptor) = self.server_tls.native_tls_acceptor() {
-            config.with_acceptor(acceptor).run(server);
-            return;
-        }
-
-        config.run(server);
+        self.server_tls.run_with_tls(config, server);
     }
 }
