@@ -3,10 +3,9 @@ use crate::{
     tls::{Tls, parse_url},
 };
 use clap::{Parser, ValueEnum};
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 use trillium::{Conn, Method, Status};
 use trillium_cache::{InMemoryStorage, client::Cache};
-use trillium_client::Client;
 use trillium_logger::{
     Logger,
     client::{ClientLogger, dev_formatter as client_dev_formatter},
@@ -55,8 +54,43 @@ pub struct ProxyCli {
     #[arg(short, long, verbatim_doc_comment, default_value_t, value_enum)]
     client_tls: Tls,
 
+    /// skip upstream TLS certificate verification (rustls only)
+    ///
+    /// dangerous: this disables authentication of the upstream server.
+    #[arg(short = 'k', long, verbatim_doc_comment)]
+    insecure: bool,
+
+    /// disable response compression (gzip/brotli/zstd)
+    #[arg(long)]
+    no_compress: bool,
+
+    /// disable response caching entirely
+    #[arg(long, help_heading = "Cache")]
+    no_cache: bool,
+
+    /// maximum total in-memory cache size, e.g. 256MiB, 1GB
+    #[arg(long, value_parser = parse_size, default_value = "256MiB", conflicts_with = "no_cache", help_heading = "Cache")]
+    cache_capacity: u64,
+
+    /// maximum cacheable response body; larger responses stream through uncached
+    #[arg(long, value_parser = parse_size, default_value = "16MiB", conflicts_with = "no_cache", help_heading = "Cache")]
+    cache_max_body: u64,
+
+    /// evict cache entries not read within this duration, e.g. 5m, 1h
+    #[arg(long, value_parser = humantime::parse_duration, conflicts_with = "no_cache", help_heading = "Cache")]
+    cache_time_to_idle: Option<Duration>,
+
+    /// evict cache entries this long after they are stored, e.g. 1h, 24h
+    #[arg(long, value_parser = humantime::parse_duration, conflicts_with = "no_cache", help_heading = "Cache")]
+    cache_time_to_live: Option<Duration>,
+
     #[command(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
+}
+
+fn parse_size(s: &str) -> Result<u64, String> {
+    let size = size::Size::from_str(s).map_err(|e| e.to_string())?;
+    u64::try_from(size.bytes()).map_err(|_| "size must not be negative".to_string())
 }
 
 impl ProxyCli {
@@ -100,13 +134,30 @@ impl ProxyCli {
             .filter_level(self.verbose.log_level_filter())
             .init();
 
-        let client = Client::from(self.client_tls).with_handler((
+        // `Option<T>` is itself a `ClientHandler`, so a `None` here drops caching
+        // entirely instead of installing a do-nothing cache.
+        let cache = (!self.no_cache).then(|| {
+            let mut storage = InMemoryStorage::new().with_max_capacity_bytes(self.cache_capacity);
+            if let Some(time_to_idle) = self.cache_time_to_idle {
+                storage = storage.with_time_to_idle(time_to_idle);
+            }
+            if let Some(time_to_live) = self.cache_time_to_live {
+                storage = storage.with_time_to_live(time_to_live);
+            }
+            Cache::new(storage)
+                .with_max_cacheable_size(self.cache_max_body)
+                .shared()
+        });
+
+        let client = crate::tls::build_client(self.client_tls, self.insecure).with_handler((
             ClientLogger::new().with_formatter(("-> ", client_dev_formatter)),
-            Cache::new(InMemoryStorage::new()).shared(),
+            cache,
         ));
 
         let server = (
             Logger::new().with_formatter(("<- ", dev_formatter)),
+            // `Option<Handler>` is a `Handler`, so `None` skips compression entirely.
+            (!self.no_compress).then(trillium_compression::compression),
             trillium_caching_headers::caching_headers(),
             if self.strategy == UpstreamSelectorStrategy::Forward {
                 Some((
