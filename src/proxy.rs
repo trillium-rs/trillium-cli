@@ -5,7 +5,13 @@ use crate::{
 use clap::{Parser, ValueEnum};
 use std::fmt::Debug;
 use trillium::{Conn, Method, Status};
-use trillium_logger::Logger;
+use trillium_cache::{InMemoryStorage, client::Cache};
+use trillium_client::Client;
+use trillium_logger::{
+    Logger,
+    client::{ClientLogger, dev_formatter as client_dev_formatter},
+    dev_formatter,
+};
 use trillium_proxy::{
     ForwardProxyConnect, Proxy, Url,
     upstream::{
@@ -94,8 +100,14 @@ impl ProxyCli {
             .filter_level(self.verbose.log_level_filter())
             .init();
 
+        let client = Client::from(self.client_tls).with_handler((
+            ClientLogger::new().with_formatter(("-> ", client_dev_formatter)),
+            Cache::new(InMemoryStorage::new()).shared(),
+        ));
+
         let server = (
-            Logger::new(),
+            Logger::new().with_formatter(("<- ", dev_formatter)),
+            trillium_caching_headers::caching_headers(),
             if self.strategy == UpstreamSelectorStrategy::Forward {
                 Some((
                     ForwardProxyConnect::new(ClientConfig::default()),
@@ -110,7 +122,7 @@ impl ProxyCli {
             } else {
                 None
             },
-            Proxy::new(self.client_tls, self.build_upstream())
+            Proxy::new(client, self.build_upstream())
                 .with_via_pseudonym("trillium-proxy")
                 .with_websocket_upgrades()
                 .proxy_not_found(),

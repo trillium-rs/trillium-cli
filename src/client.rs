@@ -7,8 +7,13 @@ use log::Level;
 use std::{
     io::{ErrorKind, IsTerminal},
     path::PathBuf,
+    time::Duration,
 };
-use trillium_client::{Body, Client, Conn, Error, Headers, Method, Status, Url, Version};
+use trillium_client::{
+    Body, Client, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version,
+};
+use trillium_logger::client::ClientLogger;
+use trillium_redirect::client::FollowRedirects;
 
 #[derive(Parser, Debug)]
 pub struct ClientCli {
@@ -114,7 +119,12 @@ impl From<HttpVersion> for Version {
 
 impl ClientCli {
     async fn build(&self) -> Conn {
-        let client = Client::from(self.tls);
+        let client = Client::from(self.tls)
+            .with_handler((
+                std::io::stdout().is_terminal().then(ClientLogger::new),
+                FollowRedirects::new(),
+            ))
+            .with_timeout(Duration::from_secs(10));
         let mut conn = client.build_conn(self.method, self.url.clone());
         conn.set_http_version(self.http_version.into());
 
@@ -167,7 +177,7 @@ impl ClientCli {
         } else {
             let mime: Option<mime::Mime> = conn
                 .response_headers()
-                .get_str(trillium_client::KnownHeaderName::ContentType)
+                .get_str(KnownHeaderName::ContentType)
                 .and_then(|ct| ct.parse().ok());
             let suffix_or_subtype =
                 mime.map(|m| m.suffix().unwrap_or_else(|| m.subtype()).to_string());
