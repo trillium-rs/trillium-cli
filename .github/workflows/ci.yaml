@@ -53,6 +53,29 @@ jobs:
         command: build
         args: --no-default-features --features serve,dev-server,client,bench,proxy,grpc,native-tls,rustls,h3
 
+  feature-matrix:
+    name: Feature powerset
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -Dwarnings
+    steps:
+    - uses: actions/checkout@master
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: taiki-e/install-action@cargo-hack
+    - uses: Swatinem/rust-cache@v2.9.1
+    # Check the powerset of subcommand and TLS features so a broken `#[cfg]`
+    # combination can't slip through (each subcommand is feature-gated and the
+    # default build won't exercise them all). `--at-least-one-of` skips the
+    # useless no-subcommand builds; dev-server (unix-only) and grpc (codegen)
+    # are covered by the `--all-features` build above.
+    - name: cargo hack check --feature-powerset
+      run:
+        cargo hack check
+        --feature-powerset --depth 3
+        --exclude-features dev-server,grpc
+        --at-least-one-of serve,client,bench,proxy
+        --keep-going
+
   check_fmt_and_docs:
     name: Lints and Docs
     runs-on: ubuntu-latest

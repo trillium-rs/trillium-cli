@@ -1,9 +1,9 @@
 use trillium_client::{Client, Url};
 use trillium_smol::ClientConfig;
 
-#[cfg(feature = "rustls")]
+#[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 use std::sync::Arc;
-#[cfg(feature = "rustls")]
+#[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 use trillium_rustls::rustls::{
     self, DigitallySignedStruct, SignatureScheme,
     client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
@@ -27,15 +27,10 @@ pub enum Tls {
     #[cfg_attr(feature = "rustls", default)]
     Rustls,
 
+    // Backend precedence for the default is rustls > native-tls > openssl, so native-tls is the
+    // default whenever it's enabled and rustls is not — even if openssl is also enabled.
     #[cfg(feature = "native-tls")]
-    #[cfg_attr(
-        all(
-            feature = "native-tls",
-            not(feature = "rustls"),
-            not(feature = "openssl")
-        ),
-        default
-    )]
+    #[cfg_attr(all(feature = "native-tls", not(feature = "rustls")), default)]
     Native,
 
     #[cfg(feature = "openssl")]
@@ -80,6 +75,7 @@ impl From<Tls> for Client {
 ///
 /// `insecure` is only honored for the `rustls` backend; with any other backend it logs a
 /// warning and falls back to verified connections.
+#[cfg(any(feature = "client", feature = "proxy"))]
 pub fn build_client(tls: Tls, insecure: bool) -> Client {
     if !insecure {
         return Client::from(tls);
@@ -96,11 +92,11 @@ pub fn build_client(tls: Tls, insecure: bool) -> Client {
 
 /// A rustls [`ServerCertVerifier`] that accepts any certificate. Deliberately not easy to reach
 /// — it disables server authentication entirely and exists only for the `--insecure` CLI flag.
-#[cfg(feature = "rustls")]
+#[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 #[derive(Debug)]
 struct AcceptAnyServerCert(Arc<CryptoProvider>);
 
-#[cfg(feature = "rustls")]
+#[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 impl ServerCertVerifier for AcceptAnyServerCert {
     fn verify_server_cert(
         &self,
@@ -146,7 +142,7 @@ impl ServerCertVerifier for AcceptAnyServerCert {
     }
 }
 
-#[cfg(feature = "rustls")]
+#[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 fn insecure_rustls_config() -> rustls::ClientConfig {
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
     let verifier = Arc::new(AcceptAnyServerCert(provider.clone()));
@@ -160,7 +156,7 @@ fn insecure_rustls_config() -> rustls::ClientConfig {
     config
 }
 
-#[cfg(feature = "rustls")]
+#[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 fn insecure_rustls_client() -> Client {
     let rustls_config = insecure_rustls_config();
 
