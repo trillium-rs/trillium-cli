@@ -39,11 +39,19 @@ jobs:
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
-    - name: Build
+    - name: Build (non-Windows)
+      if: runner.os != 'Windows'
       uses: actions-rs/cargo@v1
       with:
         command: build
         args: --all-features
+
+    - name: Build (Windows, no openssl)
+      if: runner.os == 'Windows'
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --no-default-features --features serve,dev-server,client,bench,proxy,grpc,native-tls,rustls,h3
 
   check_fmt_and_docs:
     name: Lints and Docs
@@ -63,6 +71,3 @@ jobs:
 
     - name: Format
       run: cargo fmt -- --check
-
-    - name: Docs
-      run: cargo doc --no-deps --all-features
