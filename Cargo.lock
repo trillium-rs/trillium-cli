@@ -3422,7 +3422,8 @@ dependencies = [
 [[package]]
 name = "trillium-grpc-codegen"
 version = "0.1.0"
-source = "git+https://github.com/trillium-rs/trillium-grpc#7941a7a4552624410d99e2771911beb0a3cdb63c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97295df09f5209473ba01c27bc3600b5d7dd8a5a0b7da4254f8cbf67377aaa2a"
 dependencies = [
  "prettyplease",
  "proc-macro2",
