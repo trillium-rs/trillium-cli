@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 use trillium_client::{
-    Body, Client, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version,
+    Body, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version,
 };
 use trillium_logger::client::ClientLogger;
 use trillium_redirect::client::FollowRedirects;
@@ -62,6 +62,37 @@ pub struct ClientCli {
     /// http version
     #[arg(long, verbatim_doc_comment, value_enum, default_value_t)]
     http_version: HttpVersion,
+
+    /// skip TLS certificate verification (rustls only)
+    ///
+    /// dangerous: this disables authentication of the server. use only against
+    /// hosts you control, e.g. a local server with a self-signed certificate.
+    #[arg(short = 'k', long, verbatim_doc_comment)]
+    insecure: bool,
+
+    /// print the request that would be sent, then exit without sending it
+    #[arg(long)]
+    dry_run: bool,
+
+    /// per-request timeout, e.g. 30s, 1m, 500ms
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "10s", help_heading = "Timeout")]
+    timeout: Duration,
+
+    /// disable the per-request timeout entirely
+    #[arg(long, conflicts_with = "timeout", help_heading = "Timeout")]
+    no_timeout: bool,
+
+    /// don't follow 3xx redirects; print the redirect response as-is
+    #[arg(long, help_heading = "Redirects")]
+    no_follow_redirects: bool,
+
+    /// maximum number of redirects to follow before erroring
+    #[arg(long, default_value_t = 10, conflicts_with = "no_follow_redirects", help_heading = "Redirects")]
+    max_redirects: u32,
+
+    /// follow redirects from https to http (blocked by default)
+    #[arg(long, conflicts_with = "no_follow_redirects", help_heading = "Redirects")]
+    allow_downgrade: bool,
 
     /// set the log level. add more flags for more verbosity
     ///
@@ -119,12 +150,21 @@ impl From<HttpVersion> for Version {
 
 impl ClientCli {
     async fn build(&self) -> Conn {
-        let client = Client::from(self.tls)
-            .with_handler((
-                std::io::stdout().is_terminal().then(ClientLogger::new),
-                FollowRedirects::new(),
-            ))
-            .with_timeout(Duration::from_secs(10));
+        // `Option<T>` is itself a `ClientHandler`, so a `None` here drops the
+        // follow-redirects step entirely rather than capping it at zero.
+        let client = crate::tls::build_client(self.tls, self.insecure).with_handler((
+            std::io::stdout().is_terminal().then(ClientLogger::new),
+            (!self.no_follow_redirects).then(|| {
+                FollowRedirects::new()
+                    .with_max_redirects(self.max_redirects)
+                    .with_allow_downgrade(self.allow_downgrade)
+            }),
+        ));
+        let client = if self.no_timeout {
+            client.without_timeout()
+        } else {
+            client.with_timeout(self.timeout)
+        };
         let mut conn = client.build_conn(self.method, self.url.clone());
         conn.set_http_version(self.http_version.into());
 
@@ -145,6 +185,28 @@ impl ClientCli {
         }
 
         conn
+    }
+
+    /// Print the request line, headers, and (known) body without sending anything.
+    fn print_request(&self, conn: &Conn) {
+        println!(
+            "{} {} {}",
+            conn.method().as_str().bold(),
+            conn.url().as_str(),
+            conn.http_version().as_str().dimmed()
+        );
+        print_headers(conn.request_headers());
+
+        if let Some(body) = &self.body {
+            println!("\n{body}");
+        } else if let Some(path) = &self.file {
+            println!(
+                "\n{}",
+                format!("<body streamed from {}>", path.display()).dimmed()
+            );
+        } else if !std::io::stdin().is_terminal() {
+            println!("\n{}", "<body streamed from stdin>".dimmed());
+        }
     }
 
     async fn output_body(&self, conn: &mut Conn) {
@@ -229,6 +291,11 @@ impl ClientCli {
                 .init();
 
             let mut conn = self.build().await;
+
+            if self.dry_run {
+                self.print_request(&conn);
+                return;
+            }
 
             if let Err(e) = (&mut conn).await {
                 match e {

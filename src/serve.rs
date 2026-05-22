@@ -49,6 +49,10 @@ pub struct StaticCli {
     #[arg(short, long, env)]
     index: Option<String>,
 
+    /// disable response compression (gzip/brotli/zstd)
+    #[arg(long)]
+    no_compress: bool,
+
     #[command(flatten)]
     verbose: Verbosity,
 }
@@ -78,6 +82,8 @@ impl StaticCli {
 
         let server = (
             Logger::new(),
+            // `Option<Handler>` is a `Handler`, so `None` skips compression entirely.
+            (!self.no_compress).then(trillium_compression::compression),
             self.forward
                 .clone()
                 .map(|url| Proxy::new(Client::from(Tls::default()), url)),
