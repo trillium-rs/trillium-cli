@@ -1,4 +1,5 @@
 use crate::{
+    ratelimit::RateLimit,
     server_tls::ServerTls,
     tls::{Tls, parse_url},
 };
@@ -85,6 +86,9 @@ pub struct ProxyCli {
     cache_time_to_live: Option<Duration>,
 
     #[command(flatten)]
+    rate_limit: RateLimit,
+
+    #[command(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
 }
 
@@ -156,6 +160,7 @@ impl ProxyCli {
 
         let server = (
             Logger::new().with_formatter(("<- ", dev_formatter)),
+            self.rate_limit.limiter(),
             // `Option<Handler>` is a `Handler`, so `None` skips compression entirely.
             (!self.no_compress).then(trillium_compression::compression),
             trillium_caching_headers::caching_headers(),

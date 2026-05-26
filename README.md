@@ -1,356 +1,194 @@
-```
-$ trillium help
-The trillium.rs cli
+# trillium
 
-Usage: trillium <COMMAND>
+[![crates.io version](https://img.shields.io/crates/v/trillium-cli.svg)](https://crates.io/crates/trillium-cli)
+[![license](https://img.shields.io/crates/l/trillium-cli.svg)](#license)
 
-Commands:
-  serve   Static file server and reverse proxy
-  client  Make http requests using the trillium client
-  bench   Generate http load and report latency/throughput statistics
-  proxy   Run a http proxy
-  help    Print this message or the help of the given subcommand(s)
+A single `trillium` binary that bundles the most useful pieces of the
+[trillium.rs](https://trillium.rs) web stack into a batteries-included HTTP
+toolkit:
 
-Options:
-  -h, --help     Print help
-  -V, --version  Print version
-```
+- **`serve`** — a static file server (and drop-in reverse proxy)
+- **`proxy`** — a reverse/forward proxy with upstream load-balancing and caching
+- **`client`** — a curl-like HTTP client that pretty-prints JSON and follows redirects
+- **`bench`** — a load generator with HDR-histogram latency statistics
 
-# HTTP Client
+TLS is built in (rustls by default), and with the default `h3` feature the
+servers also speak HTTP/3 over QUIC. Over TLS the `client` negotiates HTTP/2 via
+ALPN; `--http-version` selects the protocol (HTTP/1.0 through HTTP/3) for
+`client` and `bench`.
 
-```
-$ trillium help client
-Make http requests using the trillium client
+## Install
 
-Usage: trillium client [OPTIONS] <METHOD> <URL>
-
-Arguments:
-  <METHOD>
-          
-
-  <URL>
-          
-
-Options:
-  -f, --file <FILE>
-          provide a file system path to a file to use as the request body
-          
-          alternatively, you can use an operating system pipe to pass a file in
-          
-          three equivalent examples:
-          
-          trillium client post http://httpbin.org/anything -f ./body.json
-          trillium client post http://httpbin.org/anything < ./body.json
-          cat ./body.json | trillium client post http://httpbin.org/anything
-
-  -o, --output-file [<OUTPUT_FILE>]
-          write the body to a file
-
-  -b, --body <BODY>
-          provide a request body on the command line
-          
-          example:
-          trillium client post http://httpbin.org/post -b '{"hello": "world"}'
-
-  -H, --headers <HEADERS>
-          provide headers in the form -h KEY1=VALUE1 KEY2=VALUE2
-          
-          example:
-          trillium client get http://httpbin.org/headers -H Accept=application/json Authorization="Basic u:p"
-
-  -t, --tls <TLS>
-          tls implementation
-          
-          requests to https:// urls with `none` will fail
-          
-          [default: rustls]
-          [possible values: none, rustls]
-
-      --http-version <HTTP_VERSION>
-          http version
-
-          Possible values:
-          - 0.9: HTTP/0.9
-          - 1.0: HTTP/1.0
-          - 1.1: HTTP/1.1
-          - 2:   HTTP/2
-          - 3:   HTTP/3
-          
-          [default: 1.1]
-
-  -v, --verbose...
-          Increase logging verbosity
-
-  -q, --quiet...
-          Decrease logging verbosity
-
-  -h, --help
-          Print help (see a summary with '-h')
-```
-# Proxy (reverse and forward)
-
-```
-$ trillium help proxy
-Run a http proxy
-
-Usage: trillium proxy [OPTIONS] [UPSTREAM]...
-
-Arguments:
-  [UPSTREAM]...
-          [env: UPSTREAM=]
-
-Options:
-  -s, --strategy <STRATEGY>
-          [env: STRATEGY=]
-          [default: round-robin]
-          [possible values: round-robin, connection-counting, random, forward]
-
-  -o, --host <HOST>
-          Local host or ip to listen on
-          
-          [env: HOST=]
-          [default: localhost]
-
-  -p, --port <PORT>
-          Local port to listen on
-          
-          [env: PORT=]
-          [default: 8080]
-
-      --cert <CERT>
-          Path to a tls certificate file
-          
-          This will fail unless key is also provided. Providing both cert and key enables tls.
-          
-          Example: `--cert ./cert.pem --key ./key.pem` For development, try using mkcert or rcgen
-          
-          [env: CERT=]
-
-      --key <KEY>
-          The path to a tls key file
-          
-          This will fail unless cert is also provided. Providing both cert and key enables tls.
-          
-          Example: `--cert ./cert.pem --key ./key.pem` For development, try using mkcert or rcgen
-          
-          [env: KEY=]
-
-      --tls <TLS>
-          [env: TLS=]
-          [default: rustls]
-          [possible values: none, rustls]
-
-  -c, --client-tls <CLIENT_TLS>
-          tls implementation
-          
-          required if the upstream url is https.
-          
-          [default: rustls]
-          [possible values: none, rustls]
-
-  -v, --verbose...
-          Increase logging verbosity
-
-  -q, --quiet...
-          Decrease logging verbosity
-
-  -h, --help
-          Print help (see a summary with '-h')
+```sh
+cargo install trillium-cli
 ```
 
-# Static file server
+This installs a binary named `trillium`. Run `trillium --help`, or
+`trillium <command> --help`, for the full option list — the examples below
+cover the common cases.
 
-```
-$ trillium help serve
-Static file server and reverse proxy
+Most listening options also read from environment variables (`HOST`, `PORT`,
+`CERT`, `KEY`, `FORWARD`, `UPSTREAM`), so they compose well with `.env` files
+and process managers.
 
-Usage: trillium serve [OPTIONS] [ROOT]
+## `serve` — static files
 
-Arguments:
-  [ROOT]
-          Filesystem path to serve
-          
-          Defaults to the current working directory
-          
-          [default: {your working directory}]
+Serve the current directory on <http://localhost:8080>:
 
-Options:
-  -o, --host <HOST>
-          Local host or ip to listen on
-          
-          [env: HOST=]
-          [default: localhost]
-
-  -p, --port <PORT>
-          Local port to listen on
-          
-          [env: PORT=]
-          [default: 8080]
-
-      --cert <CERT>
-          Path to a tls certificate file
-          
-          This will fail unless key is also provided. Providing both cert and key enables tls.
-          
-          Example: `--cert ./cert.pem --key ./key.pem` For development, try using mkcert or rcgen
-          
-          [env: CERT=]
-
-      --key <KEY>
-          The path to a tls key file
-          
-          This will fail unless cert is also provided. Providing both cert and key enables tls.
-          
-          Example: `--cert ./cert.pem --key ./key.pem` For development, try using mkcert or rcgen
-          
-          [env: KEY=]
-
-      --tls <TLS>
-          [env: TLS=]
-          [default: rustls]
-          [possible values: none, rustls]
-
-  -f, --forward <FORWARD>
-          Host to forward (reverse proxy) not-found requests to
-          
-          This forwards any request that would otherwise be a 404 Not Found to the specified listener spec.
-          
-          Examples: `--forward localhost:8081` `--forward http://localhost:8081` `--forward https://localhost:8081`
-          
-          Note: http+unix:// schemes are not yet supported
-          
-          [env: FORWARD=]
-
-  -i, --index <INDEX>
-          [env: INDEX=]
-
-  -v, --verbose...
-          Increase logging verbosity
-
-  -q, --quiet...
-          Decrease logging verbosity
-
-  -h, --help
-          Print help (see a summary with '-h')
+```sh
+trillium serve
 ```
 
-# Load generation / testing
+Pick a directory and port, and serve over your LAN:
 
+```sh
+trillium serve ./public --host 0.0.0.0 --port 3000
 ```
-$ trillium help bench
-Generate http load and report latency/throughput statistics
 
-Usage: trillium bench [OPTIONS] <URL>
+Responses are compressed (gzip/brotli/zstd) automatically based on the client's
+`Accept-Encoding`; pass `--no-compress` to turn that off.
 
-Arguments:
-  <URL>
-          target URL to benchmark
+**Single-page apps & reverse proxying.** `--forward` turns any request that
+would 404 into a reverse proxy to another origin — perfect for serving a built
+frontend while passing `/api` calls through to a backend:
 
-Options:
-  -m, --method <METHOD>
-          HTTP method
-          
-          [default: GET]
-
-  -c, --connections <CONNECTIONS>
-          number of concurrent connections (closed-loop) or initial pool size (open-loop)
-          
-          [default: 50]
-
-  -d, --duration <DURATION>
-          total test duration (e.g. 10s, 1m, 30s500ms)
-          
-          mutually exclusive with --requests; default is 10s when neither is specified.
-
-  -n, --requests <REQUESTS>
-          total number of requests to send (closed-loop only)
-
-  -r, --rate <RATE>
-          target rate in requests per second; switches to open-loop scheduling
-
-      --pacing <PACING>
-          open-loop pacing strategy
-
-          Possible values:
-          - uniform: fixed inter-arrival interval = 1 / rate
-          - poisson: exponentially-distributed inter-arrival times with mean 1 / rate
-          
-          [default: uniform]
-
-      --max-concurrency <MAX_CONCURRENCY>
-          in open-loop mode, hard cap on simultaneous in-flight requests
-          
-          scheduled tickets that would exceed this cap are dropped and counted as saturation.
-
-  -w, --warmup <WARMUP>
-          discard statistics collected during this initial period
-
-      --timeout <TIMEOUT>
-          per-request timeout
-
-  -H, --headers <HEADERS>
-          request headers in KEY=VALUE form, repeatable
-
-  -f, --file <FILE>
-          path to a file to use as the request body
-
-  -b, --body <BODY>
-          inline request body string
-
-      --body-size <BODY_SIZE>
-          synthesize a zero-filled request body of the given size (e.g. 4kb, 1mb)
-
-      --http-version <HTTP_VERSION>
-          http version
-
-          Possible values:
-          - 0.9: HTTP/0.9
-          - 1.0: HTTP/1.0
-          - 1.1: HTTP/1.1
-          - 2:   HTTP/2
-          - 3:   HTTP/3
-          
-          [default: 1.1]
-
-  -t, --tls <TLS>
-          tls implementation
-          
-          [default: rustls]
-          [possible values: none, rustls]
-
-      --no-keepalive
-          disable http/1.1 connection reuse
-
-      --response-buffer-len <RESPONSE_BUFFER_LEN>
-          HttpConfig: initial response buffer length (bytes)
-
-      --response-buffer-max-len <RESPONSE_BUFFER_MAX_LEN>
-          HttpConfig: maximum response buffer length under backpressure (bytes)
-
-      --head-max-len <HEAD_MAX_LEN>
-          HttpConfig: max length of the http head (request line + headers)
-
-      --copy-loops-per-yield <COPY_LOOPS_PER_YIELD>
-          HttpConfig: cooperative yield interval for the copy loop
-
-      --received-body-max-len <RECEIVED_BODY_MAX_LEN>
-          HttpConfig: maximum allowed received body length (bytes)
-
-      --json
-          emit the final report as JSON to stdout
-
-      --csv <CSV>
-          write per-request timing data as CSV to this path
-
-      --no-progress
-          suppress the live progress display even when stdout is a tty
-
-  -v, --verbose...
-          Increase logging verbosity
-
-  -q, --quiet...
-          Decrease logging verbosity
-
-  -h, --help
-          Print help (see a summary with '-h')
+```sh
+trillium serve ./dist --forward http://localhost:4000
 ```
+
+**Rate limiting.** Cap requests per client network. Over-quota requests get
+`429 Too Many Requests` with a `Retry-After` header, and every metered response
+advertises the standard `RateLimit` / `RateLimit-Policy` headers:
+
+```sh
+trillium serve --rate-limit 100/min          # sustained 100 req/min per network
+trillium serve --rate-limit 10/s --rate-limit-burst 50   # allow short spikes
+```
+
+Rates are written `COUNT/WINDOW`, where the window is `s`, `min`, or `h`.
+
+## `proxy` — reverse & forward proxy
+
+Proxy all traffic to a single upstream:
+
+```sh
+trillium proxy http://localhost:4000
+```
+
+Load-balance across several upstreams (default strategy is round-robin):
+
+```sh
+trillium proxy http://app-1:4000 http://app-2:4000 --strategy connection-counting
+```
+
+Strategies: `round-robin`, `connection-counting`, `random`, and `forward` (a
+classic forward proxy, including `CONNECT` tunneling — pass no upstreams).
+
+The proxy ships with an in-memory response **cache** (honoring caching headers),
+**compression**, WebSocket upgrade passthrough, and the same `--rate-limit`
+controls as `serve`:
+
+```sh
+# 1 GiB cache, evict entries idle for 5 minutes, throttle abusive clients
+trillium proxy http://localhost:4000 \
+  --cache-capacity 1GiB --cache-time-to-idle 5m \
+  --rate-limit 1000/min
+```
+
+Use `--no-cache` to disable caching entirely. When an upstream is `https://`,
+select a client TLS backend with `--client-tls` (`-k`/`--insecure` skips
+verification for self-signed dev certs).
+
+## `client` — make requests
+
+A curl-like client that pretty-prints JSON, streams bodies, and follows
+redirects by default:
+
+```sh
+trillium client get https://example.com
+trillium client get https://httpbin.org/json
+```
+
+Send headers and a body (from the command line, a file, or stdin):
+
+```sh
+trillium client post https://httpbin.org/anything \
+  -H Authorization="Bearer $TOKEN" Content-Type=application/json \
+  -b '{"hello": "world"}'
+
+trillium client post https://httpbin.org/anything -f ./body.json
+cat ./body.json | trillium client post https://httpbin.org/anything
+```
+
+Other handy flags: `--output-file` to save the body, `--dry-run` to print the
+request without sending it, `--timeout`/`--no-timeout`, and
+`--no-follow-redirects` / `--max-redirects` to control redirect behavior.
+
+## `bench` — generate load
+
+Closed-loop: 50 concurrent connections for 10 seconds (defaults):
+
+```sh
+trillium bench https://localhost:8080
+```
+
+Open-loop at a target arrival rate (switches to scheduled load, useful for
+measuring latency under a fixed offered rate):
+
+```sh
+trillium bench https://localhost:8080 --rate 5000 --pacing poisson --duration 30s
+```
+
+Results are reported as an HDR-histogram latency summary. Add `--json` for a
+machine-readable report on stdout, or `--csv <path>` for per-request timing
+data. `--connections`, `--requests`, `--warmup`, and `--timeout` round out the
+common knobs.
+
+## HTTPS
+
+Provide a certificate and key to serve over TLS (and, with the default `h3`
+feature, HTTP/3 over QUIC on the same port):
+
+```sh
+trillium serve --cert ./cert.pem --key ./key.pem
+# or via the environment:
+CERT=./cert.pem KEY=./key.pem trillium serve
+```
+
+For local development, [`mkcert`](https://github.com/FiloSottile/mkcert) or
+`rcgen` will generate a trusted cert/key pair. Test an HTTPS+h3 server with
+`curl -k https://localhost:8080`.
+
+## Building from source & feature flags
+
+```sh
+git clone https://github.com/trillium-rs/trillium-cli
+cd trillium-cli
+cargo build --release        # release builds use fat LTO
+```
+
+Each subcommand is gated behind a Cargo feature, so you can build a smaller
+binary with only what you need:
+
+| Feature      | Subcommand   | Default | Notes |
+|--------------|--------------|:-------:|-------|
+| `serve`      | `serve`      | ✅ | static file server + reverse proxy |
+| `proxy`      | `proxy`      | ✅ | reverse/forward proxy with caching |
+| `client`     | `client`     | ✅ | HTTP client |
+| `bench`      | `bench`      | ✅ | load generator |
+| `dev-server` | `dev-server` |    | watch/rebuild/restart loop (Unix only) |
+| `grpc`       | `grpc`       |    | generate Rust modules from `.proto` files |
+
+TLS backends are selectable too: `rustls` (default), `native-tls`, and
+`openssl`. The `h3` feature (default) adds HTTP/3 over QUIC and implies
+`rustls`.
+
+```sh
+# just the client, built against the system's native TLS
+cargo install trillium-cli --no-default-features --features client,native-tls
+```
+
+## License
+
+Licensed under either of [MIT](LICENSE-MIT) or
+[Apache-2.0](LICENSE-APACHE) at your option.
