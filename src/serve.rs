@@ -1,4 +1,5 @@
 use crate::{
+    ratelimit::RateLimit,
     server_tls::ServerTls,
     tls::{Tls, parse_url},
 };
@@ -54,6 +55,9 @@ pub struct StaticCli {
     no_compress: bool,
 
     #[command(flatten)]
+    rate_limit: RateLimit,
+
+    #[command(flatten)]
     verbose: Verbosity,
 }
 
@@ -82,6 +86,7 @@ impl StaticCli {
 
         let server = (
             Logger::new(),
+            self.rate_limit.limiter(),
             // `Option<Handler>` is a `Handler`, so `None` skips compression entirely.
             (!self.no_compress).then(trillium_compression::compression),
             self.forward

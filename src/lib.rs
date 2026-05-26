@@ -81,4 +81,6 @@ impl Cli {
 }
 
 #[cfg(any(feature = "proxy", feature = "serve"))]
+mod ratelimit;
+#[cfg(any(feature = "proxy", feature = "serve"))]
 mod server_tls;
