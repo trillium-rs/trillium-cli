@@ -11,7 +11,9 @@ use trillium_logger::Logger;
 use trillium_proxy::{Client, Proxy, Url};
 use trillium_static::StaticFileHandler;
 
+mod directory_listing;
 mod root_path;
+use directory_listing::DirectoryListing;
 use root_path::RootPath;
 
 #[derive(Parser, Debug)]
@@ -54,6 +56,14 @@ pub struct StaticCli {
     #[arg(long)]
     no_compress: bool,
 
+    /// serve an HTML directory listing for directories without an index file
+    ///
+    /// When enabled, a request that resolves to a directory with no index file
+    /// renders a listing of that directory's contents instead of returning 404
+    /// Not Found. Off by default, since it exposes file names and structure.
+    #[arg(short = 'l', long, env)]
+    directory_listing: bool,
+
     #[command(flatten)]
     rate_limit: RateLimit,
 
@@ -93,6 +103,9 @@ impl StaticCli {
                 .clone()
                 .map(|url| Proxy::new(Client::from(Tls::default()), url)),
             static_file_handler,
+            // Runs only when the file handler resolved a directory it had no
+            // index for; otherwise leaves the conn untouched for the 404 path.
+            self.directory_listing.then_some(DirectoryListing),
         );
 
         let config = trillium_smol::config()
