@@ -48,6 +48,20 @@ trillium serve ./public --host 0.0.0.0 --port 3000
 Responses are compressed (gzip/brotli/zstd) automatically based on the client's
 `Accept-Encoding`; pass `--no-compress` to turn that off.
 
+**Directory listings.** By default a request for a directory with no index file
+returns `404 Not Found`. Pass `-l` / `--directory-listing` (or set
+`DIRECTORY_LISTING=1`) to instead render an HTML index of the directory's
+contents, with clickable column headers that sort by name, size, or modification
+time:
+
+```sh
+trillium serve ./files --directory-listing
+```
+
+It's off by default because it exposes file names and structure. Configuring an
+`--index` file takes precedence — listings only appear for directories without
+one.
+
 **Single-page apps & reverse proxying.** `--forward` turns any request that
 would 404 into a reverse proxy to another origin — perfect for serving a built
 frontend while passing `/api` calls through to a backend:
