@@ -84,8 +84,13 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
-        components: rustfmt, clippy
+        components: clippy
         override: true
+    - name: Install nightly rustfmt
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        components: rustfmt
 
     - uses: giraffate/clippy-action@v1
       with:
@@ -93,4 +98,4 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Format
-      run: cargo fmt -- --check
+      run: cargo +nightly fmt -- --check

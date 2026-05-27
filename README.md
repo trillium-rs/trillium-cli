@@ -169,8 +169,27 @@ single `Ctrl-C` drains all of them gracefully. A bare `:443` host binds all
 interfaces (the nginx `listen :80` convention). Routes match by path
 specificity, for all HTTP methods.
 
-> Virtual hosting on a shared socket (host-header routing) is planned; for now,
-> run one binding per host.
+**Virtual hosting.** Put `host` blocks inside a binding to dispatch by `Host`
+header on a shared socket. Patterns are exact (`example.com`), wildcard
+(`*.example.com`, any subdomain), or `*` (any). A request matching no `host`
+block falls back to the binding's direct `routes` — which also catches requests
+with no `Host` header (HTTP/1.0):
+
+```kdl
+binding ":443" {
+    tls cert="./cert.pem" key="./key.pem"
+
+    host "app.example.com" {
+        route "/*" { proxy { upstream "http://127.0.0.1:9000" } }
+    }
+    host "*.static.example.com" {
+        route "/*" { files root="./public" }
+    }
+
+    // default vhost: unmatched hosts (and Host-less requests)
+    route "/*" { redirect "https://example.com" status=308 }
+}
+```
 
 ## `client` — make requests
 
