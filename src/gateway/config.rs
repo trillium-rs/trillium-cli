@@ -173,6 +173,7 @@ pub enum Directive {
     Proxy(ProxyDirective),
     Redirect(RedirectDirective),
     Headers(HeadersDirective),
+    RewriteHtml(RewriteHtmlDirective),
 }
 
 /// `files root="/srv/www" index="index.html" directory-listing=true`.
@@ -238,12 +239,118 @@ pub enum HeaderOp {
     Remove(#[knus(argument)] String),
 }
 
+/// `rewrite-html { select "css" { <ops> } ... }` — rewrite the HTML response
+/// body via `lol-html`. Only responses whose `Content-Type` subtype is `html`
+/// are touched; everything else (JSON, binary, …) streams through untouched.
+///
+/// Because it transforms the body produced by the preceding directive, place it
+/// *after* the body-producing directive (`proxy`/`files`) in the route.
+#[derive(knus::Decode, Debug)]
+pub struct RewriteHtmlDirective {
+    /// CSS-selector blocks, applied in order. Each `select` is one `lol-html`
+    /// element handler.
+    #[knus(children(name = "select"))]
+    pub selects: Vec<SelectBlock>,
+}
+
+/// `select "a.external" { set-attribute "rel" "noopener"; append "<span/>" }` —
+/// a CSS selector and the ordered list of mutations applied to every matching
+/// element.
+#[derive(knus::Decode, Debug, Clone)]
+pub struct SelectBlock {
+    /// A `lol-html`-supported CSS selector. Validated at load time.
+    #[knus(argument)]
+    pub selector: String,
+
+    /// Mutations applied, in order, to each element the selector matches.
+    #[knus(children)]
+    pub ops: Vec<ElementOp>,
+}
+
+/// One mutation applied to a matched element. The variant name is the KDL node
+/// name (kebab-cased): `set-attribute`, `remove`, `append`, …. Markup-valued
+/// ops insert their argument as HTML; `set-text` inserts HTML-escaped text.
+#[derive(knus::Decode, Debug, Clone)]
+pub enum ElementOp {
+    /// `set-attribute "name" "value"` — set (or replace) an attribute.
+    SetAttribute(#[knus(argument)] String, #[knus(argument)] String),
+    /// `remove-attribute "name"`.
+    RemoveAttribute(#[knus(argument)] String),
+    /// `before "<markup>"` — insert markup immediately before the element.
+    Before(#[knus(argument)] String),
+    /// `after "<markup>"` — insert markup immediately after the element.
+    After(#[knus(argument)] String),
+    /// `prepend "<markup>"` — insert markup as the element's first child.
+    Prepend(#[knus(argument)] String),
+    /// `append "<markup>"` — insert markup as the element's last child.
+    Append(#[knus(argument)] String),
+    /// `set-inner "<markup>"` — replace the element's inner content with markup.
+    SetInner(#[knus(argument)] String),
+    /// `set-text "text"` — replace the element's inner content with escaped text.
+    SetText(#[knus(argument)] String),
+    /// `replace "<markup>"` — replace the element and its content with markup.
+    Replace(#[knus(argument)] String),
+    /// `set-tag "div"` — rename the element's tag.
+    SetTag(#[knus(argument)] String),
+    /// `remove` — delete the element and its content.
+    Remove,
+    /// `unwrap` — delete the element's tags but keep its inner content.
+    Unwrap,
+}
+
 impl Config {
     /// Parse a KDL config file, reporting errors with `miette` source spans.
     pub fn load(path: &std::path::Path) -> miette::Result<Self> {
         let text = std::fs::read_to_string(path)
             .map_err(|e| miette::miette!("could not read {}: {e}", path.display()))?;
         let filename = path.display().to_string();
-        Ok(knus::parse(&filename, &text)?)
+        let config: Self = knus::parse(&filename, &text)?;
+        config.validate_selectors(&filename, &text)?;
+        Ok(config)
     }
+
+    /// Validate every `rewrite-html` CSS selector against `lol-html`'s parser
+    /// before serving, so a typo or unsupported selector fails at load with a
+    /// `miette` span pointing at the offending string rather than panicking on
+    /// the first matching response.
+    fn validate_selectors(&self, filename: &str, src: &str) -> miette::Result<()> {
+        use trillium_html_rewriter::html::Selector;
+
+        let routes = self
+            .bindings
+            .iter()
+            .flat_map(|b| b.hosts.iter().flat_map(|h| &h.routes).chain(&b.routes));
+
+        for route in routes {
+            for directive in &route.directives {
+                let Directive::RewriteHtml(rewrite) = directive else {
+                    continue;
+                };
+                for block in &rewrite.selects {
+                    if let Err(e) = block.selector.parse::<Selector>() {
+                        let labels = locate(src, &block.selector)
+                            .map(|span| vec![miette::LabeledSpan::at(span, "unsupported selector")])
+                            .unwrap_or_default();
+                        return Err(miette::miette!(
+                            labels = labels,
+                            help = "lol-html supports a subset of CSS selectors; see https://docs.rs/lol-html",
+                            "invalid CSS selector {:?}: {e}",
+                            block.selector,
+                        )
+                        .with_source_code(miette::NamedSource::new(filename, src.to_string())));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Best-effort byte span of a selector literal in the source, for `miette`
+/// labels. Searches for the quoted form so it doesn't match the bare text
+/// elsewhere; the span covers the selector inside the quotes.
+fn locate(src: &str, selector: &str) -> Option<miette::SourceSpan> {
+    let quoted = format!("\"{selector}\"");
+    src.find(&quoted)
+        .map(|start| miette::SourceSpan::from((start + 1, selector.len())))
 }
