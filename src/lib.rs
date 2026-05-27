@@ -93,5 +93,7 @@ impl Cli {
 
 #[cfg(any(feature = "proxy", feature = "serve", feature = "gateway"))]
 mod ratelimit;
-#[cfg(any(feature = "proxy", feature = "serve", feature = "gateway"))]
+// `gateway` has its own TLS path (`gateway::sni`) and never touches `ServerTls`,
+// so this module is only built for `serve`/`proxy`.
+#[cfg(any(feature = "proxy", feature = "serve"))]
 mod server_tls;

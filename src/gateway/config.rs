@@ -119,6 +119,12 @@ pub struct HostBlock {
     #[knus(arguments)]
     pub patterns: Vec<String>,
 
+    /// Per-host TLS certificate, served via SNI on a shared socket. The cert is
+    /// selected by the TLS ClientHello's SNI against this host's patterns; the
+    /// binding-level `tls` (if any) is the fallback for unmatched SNI.
+    #[knus(child)]
+    pub tls: Option<TlsNode>,
+
     /// Ordered path routes for this virtual host.
     #[knus(children(name = "route"))]
     pub routes: Vec<Route>,

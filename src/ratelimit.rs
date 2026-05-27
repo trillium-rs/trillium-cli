@@ -33,6 +33,9 @@ impl RateLimit {
     ///
     /// `Option<Handler>` is itself a `Handler`, so a `None` drops straight out
     /// of the handler tuple instead of installing a pass-through.
+    // Only `serve` and `proxy` consume `RateLimit` (clap-flattened args);
+    // `gateway` configures rate limits via [`limiter_for`] from KDL instead.
+    #[cfg(any(feature = "serve", feature = "proxy"))]
     pub fn limiter(self) -> Option<impl trillium::Handler> {
         self.quota.map(|quota| {
             let quota = match self.burst {

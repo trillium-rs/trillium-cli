@@ -14,9 +14,11 @@
 use trillium::{Conn, Handler, Upgrade};
 use trillium_router::Router;
 
-/// Matches a request Host against one configured pattern.
+/// Matches a request Host (or TLS SNI) against one configured pattern. Shared
+/// by request routing and per-host TLS cert selection so both agree on what a
+/// pattern means.
 #[derive(Debug)]
-enum HostMatcher {
+pub(crate) enum HostMatcher {
     /// `*` — any host (including a missing Host header).
     Any,
     /// `example.com` — exact match (case-insensitive, port-insensitive).
@@ -26,7 +28,7 @@ enum HostMatcher {
 }
 
 impl HostMatcher {
-    fn parse(pattern: &str) -> Self {
+    pub(crate) fn parse(pattern: &str) -> Self {
         if pattern == "*" {
             Self::Any
         } else if let Some(rest) = pattern.strip_prefix("*.") {
@@ -36,7 +38,7 @@ impl HostMatcher {
         }
     }
 
-    fn matches(&self, host: Option<&str>) -> bool {
+    pub(crate) fn matches(&self, host: Option<&str>) -> bool {
         match self {
             Self::Any => true,
             Self::Exact(expected) => host == Some(expected.as_str()),
@@ -96,33 +98,53 @@ fn normalize(host: Option<&str>) -> Option<String> {
     })
 }
 
+fn host(conn: &Conn) -> Option<String> {
+    let conn: &trillium_http::Conn<_> = conn.as_ref();
+    let host = conn.host().or(conn.authority());
+    normalize(host)
+}
+
+struct NormalizedHost(Option<String>);
+
 impl Handler for HostRouter {
     async fn run(&self, conn: Conn) -> Conn {
-        let host = normalize(conn.host());
+        let host = host(&conn);
         match self.select(host.as_deref()) {
-            Some(router) => router.run(conn).await,
+            Some(router) => router.run(conn.with_state(NormalizedHost(host))).await,
             None => conn,
         }
     }
 
     async fn before_send(&self, conn: Conn) -> Conn {
-        let host = normalize(conn.host());
-        match self.select(host.as_deref()) {
-            Some(router) => router.before_send(conn).await,
-            None => conn,
+        if let Some(route) = conn
+            .state()
+            .and_then(|NormalizedHost(host)| self.select(host.as_deref()))
+        {
+            route.before_send(conn).await
+        } else {
+            conn
         }
     }
 
     fn has_upgrade(&self, upgrade: &Upgrade) -> bool {
-        let host = normalize(upgrade.authority());
-        self.select(host.as_deref())
-            .is_some_and(|router| router.has_upgrade(upgrade))
+        if let Some(route) = upgrade
+            .state()
+            .get()
+            .and_then(|NormalizedHost(host)| self.select(host.as_deref()))
+        {
+            route.has_upgrade(upgrade)
+        } else {
+            false
+        }
     }
 
     async fn upgrade(&self, upgrade: Upgrade) {
-        let host = normalize(upgrade.authority());
-        if let Some(router) = self.select(host.as_deref()) {
-            router.upgrade(upgrade).await;
+        if let Some(route) = upgrade
+            .state()
+            .get()
+            .and_then(|NormalizedHost(host)| self.select(host.as_deref()))
+        {
+            route.upgrade(upgrade).await;
         }
     }
 }
