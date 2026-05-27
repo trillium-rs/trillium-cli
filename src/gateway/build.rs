@@ -171,40 +171,21 @@ pub fn spawn_binding(
 
     let handler = binding_handler(binding, config, client);
 
-    match &binding.tls {
-        None => server.spawn(handler),
-        Some(_tls) => {
-            #[cfg(feature = "rustls")]
-            {
-                let cert = std::fs::read(&_tls.cert)
-                    .unwrap_or_else(|e| panic!("could not read cert {}: {e}", _tls.cert.display()));
-                let key = std::fs::read(&_tls.key)
-                    .unwrap_or_else(|e| panic!("could not read key {}: {e}", _tls.key.display()));
-                let acceptor = trillium_rustls::RustlsAcceptor::from_single_cert(&cert, &key);
-
-                #[cfg(feature = "h3")]
-                {
-                    let quic = trillium_quinn::QuicConfig::from_single_cert(&cert, &key);
-                    server
-                        .with_acceptor(acceptor)
-                        .with_quic(quic)
-                        .spawn(handler)
-                }
-                #[cfg(not(feature = "h3"))]
-                {
-                    server.with_acceptor(acceptor).spawn(handler)
-                }
-            }
-            #[cfg(not(feature = "rustls"))]
-            {
-                panic!(
-                    "binding {:?} requests tls but this binary was built without the rustls \
-                     feature",
-                    binding.listen
-                );
-            }
-        }
+    // TLS (with per-host SNI cert selection) is built from the binding's and its
+    // hosts' cert configs. Applied inline so the concrete server type stays
+    // inferred; both branches erase to `ServerHandle`. `gateway` currently
+    // implies `rustls`, so the `tls{}` block is always actionable.
+    if let Some(tls) = super::sni::build(binding) {
+        #[cfg(feature = "h3")]
+        return server
+            .with_acceptor(tls.acceptor)
+            .with_quic(tls.quic)
+            .spawn(handler);
+        #[cfg(not(feature = "h3"))]
+        return server.with_acceptor(tls.acceptor).spawn(handler);
     }
+
+    server.spawn(handler)
 }
 
 /// Build a `trillium_http::HttpConfig` from the `http {}` block, applying only
