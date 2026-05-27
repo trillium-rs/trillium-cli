@@ -7,6 +7,7 @@
 
 mod build;
 mod config;
+mod host;
 mod upstream;
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;

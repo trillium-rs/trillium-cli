@@ -98,7 +98,28 @@ pub struct Binding {
     #[knus(child)]
     pub http: Option<HttpConfigNode>,
 
-    /// Ordered path routes. First match wins.
+    /// Host-header virtual hosts on this (shared) socket. Each matches one or
+    /// more Host patterns and has its own routes. A request whose Host matches
+    /// no `host` block falls back to the binding's direct `routes` (the default
+    /// vhost), which also covers requests with no Host header (HTTP/1.0).
+    #[knus(children(name = "host"))]
+    pub hosts: Vec<HostBlock>,
+
+    /// Ordered path routes applied when no `host` block matches (and the only
+    /// routes when there are no `host` blocks). First match wins.
+    #[knus(children(name = "route"))]
+    pub routes: Vec<Route>,
+}
+
+/// `host "example.com" "*.api.example.com" { route ... }` — a virtual host.
+#[derive(knus::Decode, Debug)]
+pub struct HostBlock {
+    /// One or more Host patterns: exact (`example.com`), wildcard
+    /// (`*.example.com`, matches any subdomain), or `*` (any host).
+    #[knus(arguments)]
+    pub patterns: Vec<String>,
+
+    /// Ordered path routes for this virtual host.
     #[knus(children(name = "route"))]
     pub routes: Vec<Route>,
 }

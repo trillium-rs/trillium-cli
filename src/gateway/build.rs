@@ -92,25 +92,39 @@ pub fn print_startup(config: &Config) {
         };
         println!("{}", format!("{scheme}://{host}:{port}").bold().green());
 
-        let width = binding
-            .routes
-            .iter()
-            .map(|r| r.pattern.len())
-            .max()
-            .unwrap_or(0);
-        for route in &binding.routes {
-            let directives = route
-                .directives
-                .iter()
-                .map(describe_directive)
-                .collect::<Vec<_>>()
-                .join(", ");
-            println!(
-                "  {:<width$}  {} {directives}",
-                route.pattern.cyan(),
-                "→".dimmed(),
+        for hostblock in &binding.hosts {
+            println!("  {}", hostblock.patterns.join(" ").yellow());
+            print_routes(&hostblock.routes, 4);
+        }
+        if !binding.routes.is_empty() {
+            if !binding.hosts.is_empty() {
+                println!("  {}", "(default)".yellow().dimmed());
+            }
+            print_routes(
+                &binding.routes,
+                if binding.hosts.is_empty() { 2 } else { 4 },
             );
         }
+    }
+}
+
+/// Print one indented `pattern → directives` line per route.
+fn print_routes(routes: &[Route], indent: usize) {
+    use colored::Colorize;
+    let width = routes.iter().map(|r| r.pattern.len()).max().unwrap_or(0);
+    for route in routes {
+        let directives = route
+            .directives
+            .iter()
+            .map(describe_directive)
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!(
+            "{:indent$}{:<width$}  {} {directives}",
+            "",
+            route.pattern.cyan(),
+            "→".dimmed(),
+        );
     }
 }
 
@@ -220,14 +234,21 @@ fn parse_duration(s: &str) -> std::time::Duration {
 /// Build the top-level handler for one binding, applying the config-wide
 /// cross-cutting defaults (compression on unless disabled; rate limit if set).
 pub fn binding_handler(binding: &Binding, config: &Config, client: &Client) -> impl Handler {
-    let mut router = Router::new();
-    for route in &binding.routes {
-        router = router.any(
-            ROUTE_METHODS,
-            route.pattern.as_str(),
-            route_stack(route, client),
-        );
-    }
+    // With no `host` blocks, the binding is a single router over its routes (v1
+    // behavior). Otherwise a host pre-router dispatches by Host header, with the
+    // binding's direct routes as the default vhost. `BoxedHandler` unifies the
+    // two shapes into one handler type.
+    let dispatcher = if binding.hosts.is_empty() {
+        BoxedHandler::new(build_router(&binding.routes, client))
+    } else {
+        let hosts = binding
+            .hosts
+            .iter()
+            .map(|h| (h.patterns.clone(), build_router(&h.routes, client)))
+            .collect();
+        let default = (!binding.routes.is_empty()).then(|| build_router(&binding.routes, client));
+        BoxedHandler::new(super::host::HostRouter::new(hosts, default))
+    };
 
     // `Option<Handler>` is a `Handler`, so `None` drops straight out of the tuple.
     let compression = config
@@ -252,8 +273,22 @@ pub fn binding_handler(binding: &Binding, config: &Config, client: &Client) -> i
         rate_limit,
         caching_headers,
         compression,
-        router,
+        dispatcher,
     )
+}
+
+/// Build a router over a set of routes, registering each route's directive
+/// stack for all HTTP methods.
+fn build_router(routes: &[Route], client: &Client) -> Router {
+    let mut router = Router::new();
+    for route in routes {
+        router = router.any(
+            ROUTE_METHODS,
+            route.pattern.as_str(),
+            route_stack(route, client),
+        );
+    }
+    router
 }
 
 /// Assemble one route's ordered directive stack into a single handler.
