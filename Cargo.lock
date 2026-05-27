@@ -3749,9 +3749,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-html-rewriter"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a1ce4e84c40520cc2d792ae993f75c45f71520b4c5adeaa3e360886687e35b2"
+checksum = "55d4a12ac89d26071b96aa2299b40ca1970da4879a3710dd898f456a95ea1da0"
 dependencies = [
  "futures-lite 2.6.1",
  "lol-async",

@@ -118,8 +118,8 @@ verification for self-signed dev certs).
 
 Where `serve` and `proxy` each do one thing from flags, `gateway` reads a
 [KDL](https://kdl.dev) config file and assembles the same building blocks —
-static files, reverse proxy, redirects, header rewriting, compression, rate
-limiting, TLS/h3 — into one or more listeners. It's a trillium-backed
+static files, reverse proxy, redirects, header & HTML rewriting, compression,
+rate limiting, TLS/h3 — into one or more listeners. It's a trillium-backed
 caddy/nginx-lite.
 
 ```sh
@@ -144,7 +144,9 @@ cache {
 
 binding ":443" {
     tls cert="./cert.pem" key="./key.pem"
-    http { received-body-max-len "10MiB" }
+    http {
+        received-body-max-len "10MiB"
+    }
 
     route "/api/*" {
         // /api is stripped (the route pattern controls stripping, like `files`);
@@ -155,10 +157,15 @@ binding ":443" {
         }
     }
 
-    route "/old/*" { redirect "https://example.com/new" status=308 }
+    route "/old/*" {
+        redirect "https://example.com/new" status=308
+    }
 
     route "/*" {
-        headers { add "X-Served-By" "trillium"; remove "Server" }
+        headers {
+            add "X-Served-By" "trillium"
+            remove "Server"
+        }
         files root="./public" index="index.html" directory-listing=true
     }
 }
@@ -168,6 +175,47 @@ Declare multiple `binding` blocks to run several listeners in one process; a
 single `Ctrl-C` drains all of them gracefully. A bare `:443` host binds all
 interfaces (the nginx `listen :80` convention). Routes match by path
 specificity, for all HTTP methods.
+
+**HTML rewriting.** A `rewrite-html` directive streams the response body through
+[lol-html](https://docs.rs/lol-html), applying ordered mutations to the elements
+matched by CSS selectors — inject tags, rewrite attributes, or strip nodes from
+a static page or a proxied upstream. Only `text/html` responses are touched;
+JSON and binary stream through untouched, so it's safe to drop in front of a
+mixed `proxy`. CSS selectors are validated when the config loads (with a source
+span pointing at any unsupported selector), not on the first request.
+
+```kdl
+route "/*" {
+    proxy {
+        upstream "http://127.0.0.1:9000"
+    }
+
+    rewrite-html {
+        select "head" {
+            append "<script src=\"/analytics.js\" async></script>"
+        }
+        select "a[target=_blank]" {
+            set-attribute "rel" "noopener noreferrer"
+        }
+        select "img" {
+            set-attribute "loading" "lazy"
+        }
+        select ".legacy-banner" {
+            remove
+        }
+        select "title" {
+            set-text "Proxied by trillium"
+        }
+    }
+}
+```
+
+Each `select "css-selector"` block holds an ordered list of element mutations.
+Markup-valued ops (`before`, `after`, `prepend`, `append`, `set-inner`,
+`replace`) insert their argument as HTML; `set-text` inserts HTML-escaped text.
+The rest: `set-attribute "name" "value"`, `remove-attribute "name"`,
+`set-tag "div"`, `remove` (delete the element and its content), and `unwrap`
+(drop the element's tags but keep its content).
 
 **Virtual hosting.** Put `host` blocks inside a binding to dispatch by `Host`
 header on a shared socket. Patterns are exact (`example.com`), wildcard
@@ -180,14 +228,22 @@ binding ":443" {
     tls cert="./cert.pem" key="./key.pem"
 
     host "app.example.com" {
-        route "/*" { proxy { upstream "http://127.0.0.1:9000" } }
+        route "/*" {
+            proxy {
+                upstream "http://127.0.0.1:9000"
+            }
+        }
     }
     host "*.static.example.com" {
-        route "/*" { files root="./public" }
+        route "/*" {
+            files root="./public"
+        }
     }
 
     // default vhost: unmatched hosts (and Host-less requests)
-    route "/*" { redirect "https://example.com" status=308 }
+    route "/*" {
+        redirect "https://example.com" status=308
+    }
 }
 ```
 

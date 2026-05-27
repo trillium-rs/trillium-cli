@@ -36,5 +36,23 @@ binding ":8080" {
             remove "Server"
         }
         files root="." index="index.html" directory-listing=true
+
+        // Rewrite the HTML response with lol-html CSS selectors. Only text/html
+        // responses are touched; JSON/binary pass through. Each `select` block
+        // applies its ordered mutations to every matching element.
+        rewrite-html {
+            select "head" {
+                append "<script src=\"/analytics.js\" async></script>"
+            }
+            select "a[target=_blank]" {
+                set-attribute "rel" "noopener noreferrer"
+            }
+            select "img" {
+                set-attribute "loading" "lazy"
+            }
+            select ".legacy-banner" {
+                remove
+            }
+        }
     }
 }

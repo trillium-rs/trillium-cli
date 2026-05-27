@@ -10,8 +10,9 @@
 
 use super::{
     config::{
-        Binding, CacheNode, Config, Directive, FilesDirective, HeaderOp, HeadersDirective,
-        HttpConfigNode, ProxyDirective, RedirectDirective, Route,
+        Binding, CacheNode, Config, Directive, ElementOp, FilesDirective, HeaderOp,
+        HeadersDirective, HttpConfigNode, ProxyDirective, RedirectDirective, RewriteHtmlDirective,
+        Route, SelectBlock,
     },
     upstream,
 };
@@ -19,6 +20,10 @@ use crate::{directory_listing::DirectoryListing, tls::Tls};
 use trillium::{BoxedHandler, Conn, Handler, HttpConfig, KnownHeaderName, Method, Status};
 use trillium_cache::{InMemoryStorage, client::Cache};
 use trillium_client::Client;
+use trillium_html_rewriter::{
+    HtmlRewriter, Settings,
+    html::{element, html_content::ContentType},
+};
 use trillium_logger::Logger;
 use trillium_proxy::Proxy;
 use trillium_router::Router;
@@ -142,6 +147,7 @@ fn describe_directive(directive: &Directive) -> String {
         ),
         Directive::Redirect(r) => format!("redirect {}", r.to),
         Directive::Headers(_) => "headers".to_string(),
+        Directive::RewriteHtml(r) => format!("rewrite-html ({} selectors)", r.selects.len()),
     }
 }
 
@@ -287,7 +293,57 @@ fn push_directive(stack: &mut Vec<BoxedHandler>, directive: &Directive, client: 
         Directive::Proxy(proxy) => push_proxy(stack, proxy, client),
         Directive::Redirect(redirect) => stack.push(BoxedHandler::new(Redirect::new(redirect))),
         Directive::Headers(headers) => stack.push(BoxedHandler::new(Headers::new(headers))),
+        Directive::RewriteHtml(rewrite) => push_rewrite_html(stack, rewrite),
     }
+}
+
+/// `rewrite-html` → an [`HtmlRewriter`] that replays the configured per-selector
+/// element mutations over the response body. Selectors are validated at load
+/// time (see [`Config::validate_selectors`](super::config::Config)), so the
+/// `element!` macro's internal parse never fails here. The handler self-gates on
+/// the response `Content-Type`, so it's safe regardless of what the route serves.
+fn push_rewrite_html(stack: &mut Vec<BoxedHandler>, rewrite: &RewriteHtmlDirective) {
+    let selects = rewrite.selects.clone();
+    // `HtmlRewriter::new` wants a `Fn() -> Settings`: lol-html's handlers are
+    // single-use, so fresh ones are built per rewritten response. Borrow (don't
+    // consume) `selects` so the closure stays `Fn`.
+    let handler = HtmlRewriter::new(move || Settings {
+        element_content_handlers: selects
+            .iter()
+            .cloned()
+            .map(|SelectBlock { selector, ops }| {
+                element!(selector, move |el| {
+                    for op in &ops {
+                        match op {
+                            ElementOp::SetAttribute(name, value) => {
+                                let _ = el.set_attribute(name, value);
+                            }
+                            ElementOp::RemoveAttribute(name) => el.remove_attribute(name),
+                            ElementOp::Before(html) => el.before(html, ContentType::Html),
+                            ElementOp::After(html) => el.after(html, ContentType::Html),
+                            ElementOp::Prepend(html) => el.prepend(html, ContentType::Html),
+                            ElementOp::Append(html) => el.append(html, ContentType::Html),
+                            ElementOp::SetInner(html) => {
+                                el.set_inner_content(html, ContentType::Html)
+                            }
+                            ElementOp::SetText(text) => {
+                                el.set_inner_content(text, ContentType::Text)
+                            }
+                            ElementOp::Replace(html) => el.replace(html, ContentType::Html),
+                            ElementOp::SetTag(name) => {
+                                let _ = el.set_tag_name(name);
+                            }
+                            ElementOp::Remove => el.remove(),
+                            ElementOp::Unwrap => el.remove_and_keep_content(),
+                        }
+                    }
+                    Ok(())
+                })
+            })
+            .collect(),
+        ..Settings::new_send()
+    });
+    stack.push(BoxedHandler::new(handler));
 }
 
 /// `files` → a static file handler, optionally followed by a directory listing.
