@@ -1,8 +1,6 @@
-use trillium_client::{Client, Url};
-use trillium_smol::ClientConfig;
-
 #[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 use std::sync::Arc;
+use trillium_client::{Client, Url};
 #[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 use trillium_rustls::rustls::{
     self, DigitallySignedStruct, SignatureScheme,
@@ -10,6 +8,7 @@ use trillium_rustls::rustls::{
     crypto::CryptoProvider,
     pki_types::{CertificateDer, ServerName, UnixTime},
 };
+use trillium_smol::ClientConfig;
 
 #[derive(clap::ValueEnum, Debug, Eq, PartialEq, Clone, Copy, Default)]
 pub enum Tls {

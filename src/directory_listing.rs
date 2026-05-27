@@ -1,4 +1,5 @@
-//! Automatic directory listings for the `serve` subcommand.
+//! Automatic directory listings, shared by the `serve` and `gateway`
+//! subcommands.
 //!
 //! When [`StaticFileHandler`][trillium_static::StaticFileHandler] resolves a
 //! request to a directory but has no index file to serve, it records a
@@ -149,7 +150,10 @@ fn read_entries(dir: &Path) -> std::io::Result<Vec<Entry>> {
         entries.push(Entry {
             name: entry.file_name().to_string_lossy().into_owned(),
             is_dir,
-            len: meta.as_ref().filter(|_| !is_dir).map(std::fs::Metadata::len),
+            len: meta
+                .as_ref()
+                .filter(|_| !is_dir)
+                .map(std::fs::Metadata::len),
             modified: meta.as_ref().and_then(|m| m.modified().ok()),
         });
     }
@@ -238,7 +242,11 @@ fn format_modified(modified: Option<SystemTime>) -> String {
 /// query-only relative link, so it preserves the current path.
 fn header_cell(label: &str, key: SortKey, sort: Sort, extra_class: &str) -> String {
     let active = sort.key == key;
-    let order = if active { sort.order.flipped() } else { Order::Asc };
+    let order = if active {
+        sort.order.flipped()
+    } else {
+        Order::Asc
+    };
     // Arrow points the way values grow reading top-to-bottom: ascending ↓,
     // descending ↑.
     let (aria, arrow) = match (active, sort.order) {
@@ -282,8 +290,9 @@ fn render(url_path: &str, entries: &[Entry], sort: Sort) -> String {
         let parent = parent_path(&base);
         let _ = write!(
             rows,
-            "<tr><td class=\"name\"><a href=\"{parent}\">{FOLDER_ICON}<span>../</span></a></td>\
-             <td class=\"size\"></td><td class=\"modified\"></td></tr>"
+            "<tr><td class=\"name\"><a \
+             href=\"{parent}\">{FOLDER_ICON}<span>../</span></a></td><td class=\"size\"></td><td \
+             class=\"modified\"></td></tr>"
         );
     }
 
@@ -297,8 +306,9 @@ fn render(url_path: &str, entries: &[Entry], sort: Sort) -> String {
         };
         let _ = write!(
             rows,
-            "<tr><td class=\"name\"><a href=\"{href}\">{icon}<span>{name}{slash}</span></a></td>\
-             <td class=\"size\">{size}</td><td class=\"modified\">{modified}</td></tr>",
+            "<tr><td class=\"name\"><a \
+             href=\"{href}\">{icon}<span>{name}{slash}</span></a></td><td \
+             class=\"size\">{size}</td><td class=\"modified\">{modified}</td></tr>",
             name = escape(&entry.name),
             modified = format_modified(entry.modified),
         );
@@ -336,30 +346,33 @@ fn parent_path(base: &str) -> String {
     }
 }
 
-const FOLDER_ICON: &str = "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M1.5 2.5h4l1.5 1.5h7.5v9h-13z\"/></svg>";
-const FILE_ICON: &str = "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M3 1.5h6L13 5v9.5H3z\"/></svg>";
+const FOLDER_ICON: &str = "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M1.5 \
+                           2.5h4l1.5 1.5h7.5v9h-13z\"/></svg>";
+const FILE_ICON: &str =
+    "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M3 1.5h6L13 5v9.5H3z\"/></svg>";
 
-const STYLE: &str = "\
-:root{color-scheme:light dark;--fg:#1a1a1a;--muted:#6b7280;--bg:#ffffff;--row:#f3f4f6;--border:#e5e7eb;--accent:#2563eb;--icon:#9ca3af;}\
-@media(prefers-color-scheme:dark){:root{--fg:#e5e7eb;--muted:#9ca3af;--bg:#0b0d12;--row:#161a22;--border:#262b36;--accent:#60a5fa;--icon:#6b7280;}}\
-*{box-sizing:border-box;}\
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}\
-main{max-width:880px;margin:0 auto;padding:2.5rem 1.25rem 4rem;}\
-h1{font-size:1.15rem;font-weight:600;margin:0 0 1.25rem;word-break:break-all;}\
-table{width:100%;border-collapse:collapse;}\
-th{text-align:left;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:0 .75rem .5rem;border-bottom:1px solid var(--border);}\
-th.sortable a{display:inline-flex;align-items:center;gap:.2rem;color:inherit;text-decoration:none;font:inherit;}\
-th.sortable a:hover{color:var(--fg);}\
-th.active{color:var(--fg);}\
-td{padding:.45rem .75rem;border-bottom:1px solid var(--border);white-space:nowrap;}\
-tr:hover td{background:var(--row);}\
-td.name{width:100%;}\
-td.size,th.size{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);}\
-td.modified,th.modified{color:var(--muted);font-variant-numeric:tabular-nums;}\
-a{display:flex;align-items:center;gap:.5rem;color:var(--accent);text-decoration:none;overflow:hidden;}\
-a:hover span{text-decoration:underline;}\
-a span{overflow:hidden;text-overflow:ellipsis;}\
-svg{flex:none;width:1rem;height:1rem;fill:var(--icon);}\
-footer{margin-top:1.5rem;font-size:.8rem;color:var(--muted);}\
-footer a{display:inline;color:var(--muted);text-decoration:underline;}\
-@media(max-width:520px){td.modified,th.modified{display:none;}}";
+const STYLE: &str =
+    "\
+:root{color-scheme:light \
+     dark;--fg:#1a1a1a;--muted:#6b7280;--bg:#ffffff;--row:#f3f4f6;--border:#e5e7eb;--accent:#\
+     2563eb;--icon:#9ca3af;}@media(prefers-color-scheme:dark){:root{--fg:#e5e7eb;--muted:#9ca3af;\
+     --bg:#0b0d12;--row:#161a22;--border:#262b36;--accent:#60a5fa;--icon:#6b7280;}}*{box-sizing:\
+     border-box;}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 \
+     -apple-system,BlinkMacSystemFont,'Segoe \
+     UI',Roboto,Helvetica,Arial,sans-serif;}main{max-width:880px;margin:0 auto;padding:2.5rem \
+     1.25rem 4rem;}h1{font-size:1.15rem;font-weight:600;margin:0 0 \
+     1.25rem;word-break:break-all;}table{width:100%;border-collapse:collapse;}th{text-align:left;\
+     font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);\
+     font-weight:600;padding:0 .75rem .5rem;border-bottom:1px solid var(--border);}th.sortable \
+     a{display:inline-flex;align-items:center;gap:.2rem;color:inherit;text-decoration:none;font:\
+     inherit;}th.sortable a:hover{color:var(--fg);}th.active{color:var(--fg);}td{padding:.45rem \
+     .75rem;border-bottom:1px solid var(--border);white-space:nowrap;}tr:hover \
+     td{background:var(--row);}td.name{width:100%;}td.size,th.size{text-align:right;\
+     font-variant-numeric:tabular-nums;color:var(--muted);}td.modified,th.modified{color:\
+     var(--muted);font-variant-numeric:tabular-nums;}a{display:flex;align-items:center;gap:.5rem;\
+     color:var(--accent);text-decoration:none;overflow:hidden;}a:hover \
+     span{text-decoration:underline;}a \
+     span{overflow:hidden;text-overflow:ellipsis;}svg{flex:none;width:1rem;height:1rem;fill:\
+     var(--icon);}footer{margin-top:1.5rem;font-size:.8rem;color:var(--muted);}footer \
+     a{display:inline;color:var(--muted);text-decoration:underline;}@media(max-width:520px){td.\
+     modified,th.modified{display:none;}}";

@@ -1,0 +1,388 @@
+//! Turns the decoded [`config`](super::config) into running trillium handlers.
+//!
+//! Each [`Binding`] becomes one listener. Per-binding cross-cutting handlers
+//! (logger, rate limit, compression) wrap a [`trillium_router::Router`] in which
+//! every [`Route`] registers its ordered directive stack — a `Vec<BoxedHandler>`,
+//! the runtime-assembled equivalent of the `Option`-in-a-tuple idiom used by
+//! `serve`/`proxy` — for *all* HTTP methods, so routing is by path regardless of
+//! method. Config patterns (`/api/*`, `/*`) are routefinder patterns verbatim,
+//! and the matched prefix is stripped for the inner handlers.
+
+use super::{
+    config::{
+        Binding, CacheNode, Config, Directive, FilesDirective, HeaderOp, HeadersDirective,
+        HttpConfigNode, ProxyDirective, RedirectDirective, Route,
+    },
+    upstream,
+};
+use crate::{directory_listing::DirectoryListing, tls::Tls};
+use trillium::{BoxedHandler, Conn, Handler, HttpConfig, KnownHeaderName, Method, Status};
+use trillium_cache::{InMemoryStorage, client::Cache};
+use trillium_client::Client;
+use trillium_logger::Logger;
+use trillium_proxy::Proxy;
+use trillium_router::Router;
+use trillium_server_common::{ServerHandle, Swansong};
+use trillium_static::StaticFileHandler;
+
+/// Default cache knobs, matching `trillium proxy`.
+const DEFAULT_CACHE_CAPACITY: u64 = 256 * 1024 * 1024;
+const DEFAULT_CACHE_MAX_BODY: u64 = 16 * 1024 * 1024;
+
+/// Build the shared proxy client, attaching a response cache if the config
+/// opts in. One client (and one cache + connection pool) serves every `proxy`
+/// directive across all bindings.
+pub fn build_client(config: &Config) -> Client {
+    let client = Client::from(Tls::default());
+    match &config.cache {
+        None => client,
+        Some(cache) => client.with_handler(build_cache(cache)),
+    }
+}
+
+fn build_cache(cache: &CacheNode) -> impl trillium_client::ClientHandler {
+    let capacity = cache
+        .capacity
+        .as_deref()
+        .map_or(DEFAULT_CACHE_CAPACITY, parse_size);
+    let max_body = cache
+        .max_body
+        .as_deref()
+        .map_or(DEFAULT_CACHE_MAX_BODY, parse_size);
+
+    let mut storage = InMemoryStorage::new().with_max_capacity_bytes(capacity);
+    if let Some(tti) = &cache.time_to_idle {
+        storage = storage.with_time_to_idle(parse_duration(tti));
+    }
+    if let Some(ttl) = &cache.time_to_live {
+        storage = storage.with_time_to_live(parse_duration(ttl));
+    }
+    Cache::new(storage)
+        .with_max_cacheable_size(max_body)
+        .shared()
+}
+
+/// Every HTTP method a route stack is registered for, so a route matches on
+/// path alone. (`Router::all` covers only GET/POST/PUT/DELETE/PATCH; a gateway
+/// must also pass HEAD, OPTIONS, etc.)
+const ROUTE_METHODS: &[Method] = &[
+    Method::Get,
+    Method::Head,
+    Method::Post,
+    Method::Put,
+    Method::Delete,
+    Method::Patch,
+    Method::Options,
+    Method::Connect,
+    Method::Trace,
+];
+
+/// Print a colored summary of every binding and its routes at startup. The
+/// output is part of the product: it shows, at a glance, what each listener
+/// serves.
+pub fn print_startup(config: &Config) {
+    use colored::Colorize;
+
+    for binding in &config.bindings {
+        let (host, port) = parse_listen(&binding.listen);
+        let scheme = if binding.tls.is_some() {
+            "https"
+        } else {
+            "http"
+        };
+        println!("{}", format!("{scheme}://{host}:{port}").bold().green());
+
+        let width = binding
+            .routes
+            .iter()
+            .map(|r| r.pattern.len())
+            .max()
+            .unwrap_or(0);
+        for route in &binding.routes {
+            let directives = route
+                .directives
+                .iter()
+                .map(describe_directive)
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!(
+                "  {:<width$}  {} {directives}",
+                route.pattern.cyan(),
+                "→".dimmed(),
+            );
+        }
+    }
+}
+
+/// One-line human description of a directive for the startup summary.
+fn describe_directive(directive: &Directive) -> String {
+    match directive {
+        Directive::Files(f) => format!("files {}", f.root.display()),
+        Directive::Proxy(p) => format!(
+            "proxy {}",
+            p.upstreams
+                .iter()
+                .map(|u| u.url.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        Directive::Redirect(r) => format!("redirect {}", r.to),
+        Directive::Headers(_) => "headers".to_string(),
+    }
+}
+
+/// Build one binding's listener `Config` (host/port, shared swansong, per-binding
+/// `HttpConfig`, TLS) and spawn it, returning its [`ServerHandle`]. TLS is
+/// applied inline so the concrete server type stays inferred.
+pub fn spawn_binding(
+    binding: &Binding,
+    config: &Config,
+    swansong: &Swansong,
+    client: &Client,
+) -> ServerHandle {
+    let (host, port) = parse_listen(&binding.listen);
+
+    let mut server = trillium_smol::config()
+        .with_host(&host)
+        .with_port(port)
+        .with_swansong(swansong.clone())
+        .without_signals();
+
+    if let Some(http) = &binding.http {
+        server = server.with_http_config(http_config(http));
+        if let Some(max) = http.max_connections {
+            server = server.with_max_connections(Some(max));
+        }
+    }
+
+    let handler = binding_handler(binding, config, client);
+
+    match &binding.tls {
+        None => server.spawn(handler),
+        Some(_tls) => {
+            #[cfg(feature = "rustls")]
+            {
+                let cert = std::fs::read(&_tls.cert)
+                    .unwrap_or_else(|e| panic!("could not read cert {}: {e}", _tls.cert.display()));
+                let key = std::fs::read(&_tls.key)
+                    .unwrap_or_else(|e| panic!("could not read key {}: {e}", _tls.key.display()));
+                let acceptor = trillium_rustls::RustlsAcceptor::from_single_cert(&cert, &key);
+
+                #[cfg(feature = "h3")]
+                {
+                    let quic = trillium_quinn::QuicConfig::from_single_cert(&cert, &key);
+                    server
+                        .with_acceptor(acceptor)
+                        .with_quic(quic)
+                        .spawn(handler)
+                }
+                #[cfg(not(feature = "h3"))]
+                {
+                    server.with_acceptor(acceptor).spawn(handler)
+                }
+            }
+            #[cfg(not(feature = "rustls"))]
+            {
+                panic!(
+                    "binding {:?} requests tls but this binary was built without the rustls \
+                     feature",
+                    binding.listen
+                );
+            }
+        }
+    }
+}
+
+/// Build a `trillium_http::HttpConfig` from the `http {}` block, applying only
+/// the keys present. Size-valued fields accept human units (`"10MiB"`).
+fn http_config(node: &HttpConfigNode) -> HttpConfig {
+    let mut cfg = HttpConfig::default();
+    if let Some(s) = &node.received_body_max_len {
+        cfg = cfg.with_received_body_max_len(parse_size(s));
+    }
+    if let Some(s) = &node.head_max_len {
+        cfg = cfg.with_head_max_len(parse_size(s) as usize);
+    }
+    cfg
+}
+
+/// Parse a human-readable byte size like `10MiB` or `1GB` into bytes.
+fn parse_size(s: &str) -> u64 {
+    let size = size::Size::from_str(s).unwrap_or_else(|e| panic!("invalid size {s:?}: {e}"));
+    u64::try_from(size.bytes()).unwrap_or_else(|_| panic!("size {s:?} must not be negative"))
+}
+
+/// Parse a human-readable duration like `5m` or `1h`.
+fn parse_duration(s: &str) -> std::time::Duration {
+    humantime::parse_duration(s).unwrap_or_else(|e| panic!("invalid duration {s:?}: {e}"))
+}
+
+/// Build the top-level handler for one binding, applying the config-wide
+/// cross-cutting defaults (compression on unless disabled; rate limit if set).
+pub fn binding_handler(binding: &Binding, config: &Config, client: &Client) -> impl Handler {
+    let mut router = Router::new();
+    for route in &binding.routes {
+        router = router.any(
+            ROUTE_METHODS,
+            route.pattern.as_str(),
+            route_stack(route, client),
+        );
+    }
+
+    // `Option<Handler>` is a `Handler`, so `None` drops straight out of the tuple.
+    let compression = config
+        .compression
+        .unwrap_or(true)
+        .then(trillium_compression::compression);
+    let rate_limit = config.rate_limit.as_ref().map(|rl| {
+        crate::ratelimit::limiter_for(&rl.rate, rl.burst)
+            .unwrap_or_else(|e| panic!("invalid rate-limit {:?}: {e}", rl.rate))
+    });
+    // Pairs with the client-side response cache: adds ETag/Cache-Control
+    // handling to our responses. Only present when caching is enabled.
+    let caching_headers = config
+        .cache
+        .is_some()
+        .then(trillium_caching_headers::caching_headers);
+
+    (
+        // Suppress the per-binding "Trillium started …" banner; our own
+        // `print_startup` summary covers all bindings once, up front.
+        Logger::new().without_init_message(),
+        rate_limit,
+        caching_headers,
+        compression,
+        router,
+    )
+}
+
+/// Assemble one route's ordered directive stack into a single handler.
+fn route_stack(route: &Route, client: &Client) -> Vec<BoxedHandler> {
+    let mut stack = Vec::new();
+    for directive in &route.directives {
+        push_directive(&mut stack, directive, client);
+    }
+    stack
+}
+
+fn push_directive(stack: &mut Vec<BoxedHandler>, directive: &Directive, client: &Client) {
+    match directive {
+        Directive::Files(files) => push_files(stack, files),
+        Directive::Proxy(proxy) => push_proxy(stack, proxy, client),
+        Directive::Redirect(redirect) => stack.push(BoxedHandler::new(Redirect::new(redirect))),
+        Directive::Headers(headers) => stack.push(BoxedHandler::new(Headers::new(headers))),
+    }
+}
+
+/// `files` → a static file handler, optionally followed by a directory listing.
+fn push_files(stack: &mut Vec<BoxedHandler>, files: &FilesDirective) {
+    let mut handler = StaticFileHandler::new(&files.root);
+    if let Some(index) = &files.index {
+        handler = handler.with_index_file(index);
+    }
+    stack.push(BoxedHandler::new(handler));
+
+    if files.directory_listing.unwrap_or(false) {
+        // Runs only when the file handler resolved a directory it had no index
+        // for; otherwise leaves the conn untouched. Same pattern as `serve`.
+        stack.push(BoxedHandler::new(DirectoryListing));
+    }
+}
+
+/// `proxy` → a reverse proxy over the configured upstream selector. Upstream
+/// 404s are forwarded to the client (`proxy_not_found`), since a proxy route is
+/// terminal.
+fn push_proxy(stack: &mut Vec<BoxedHandler>, proxy: &ProxyDirective, client: &Client) {
+    let handler = Proxy::new(client.clone(), upstream::build_selector(proxy))
+        .with_via_pseudonym("trillium-gateway")
+        .with_websocket_upgrades()
+        .proxy_not_found();
+    stack.push(BoxedHandler::new(handler));
+}
+
+/// Parse a binding's `listen` address into `(host, port)`. An empty host
+/// (`":8080"`) binds all interfaces, matching the nginx `listen :80` convention.
+pub fn parse_listen(listen: &str) -> (String, u16) {
+    let (host, port) = listen
+        .rsplit_once(':')
+        .unwrap_or_else(|| panic!("listen must be host:port or :port (got {listen:?})"));
+    let port = port
+        .parse()
+        .unwrap_or_else(|_| panic!("invalid port in listen {listen:?}"));
+    let host = if host.is_empty() {
+        "0.0.0.0".to_string()
+    } else {
+        host.to_string()
+    };
+    (host, port)
+}
+
+/// `redirect "url" status=NNN` — respond with a `Location` redirect and halt.
+#[derive(Debug, Clone)]
+struct Redirect {
+    to: String,
+    status: Status,
+}
+
+impl Redirect {
+    fn new(redirect: &RedirectDirective) -> Self {
+        let status = match redirect.status {
+            Some(code) => {
+                Status::try_from(code).unwrap_or_else(|_| panic!("invalid redirect status {code}"))
+            }
+            None => Status::Found,
+        };
+        Self {
+            to: redirect.to.clone(),
+            status,
+        }
+    }
+}
+
+impl Handler for Redirect {
+    async fn run(&self, conn: Conn) -> Conn {
+        conn.with_response_header(KnownHeaderName::Location, self.to.clone())
+            .with_status(self.status)
+            .halt()
+    }
+}
+
+/// `headers { add/set/remove ... }` — mutate response headers. Applied in
+/// `before_send` so it overrides headers set by the terminal handler (and can
+/// remove headers added late, like `Server`).
+#[derive(Debug, Clone)]
+struct Headers {
+    ops: Vec<HeaderOp>,
+}
+
+impl Headers {
+    fn new(headers: &HeadersDirective) -> Self {
+        Self {
+            ops: headers.ops.clone(),
+        }
+    }
+}
+
+impl Handler for Headers {
+    async fn run(&self, conn: Conn) -> Conn {
+        conn
+    }
+
+    async fn before_send(&self, mut conn: Conn) -> Conn {
+        let headers = conn.response_headers_mut();
+        for op in &self.ops {
+            match op {
+                HeaderOp::Add(name, value) => {
+                    headers.append(name.clone(), value.clone());
+                }
+                HeaderOp::Set(name, value) => {
+                    headers.insert(name.clone(), value.clone());
+                }
+                HeaderOp::Remove(name) => {
+                    headers.remove(name.clone());
+                }
+            }
+        }
+        conn
+    }
+}

@@ -20,7 +20,11 @@ pub struct RateLimit {
     ///
     /// Permits short spikes before requests are held to the sustained rate.
     /// Defaults to the --rate-limit count.
-    #[arg(long = "rate-limit-burst", requires = "quota", help_heading = "Rate limit")]
+    #[arg(
+        long = "rate-limit-burst",
+        requires = "quota",
+        help_heading = "Rate limit"
+    )]
     burst: Option<u64>,
 }
 
@@ -38,6 +42,22 @@ impl RateLimit {
             RateLimiter::by_network(quota)
         })
     }
+}
+
+/// Build a per-network rate limiter from a `COUNT/WINDOW` spec and optional
+/// burst, for callers (like `gateway`) that configure rate limiting outside of
+/// clap. Mirrors [`RateLimit::limiter`].
+#[cfg(feature = "gateway")]
+pub(crate) fn limiter_for(
+    rate: &str,
+    burst: Option<u64>,
+) -> Result<impl trillium::Handler, String> {
+    let quota = parse_quota(rate)?;
+    let quota = match burst {
+        Some(burst) => quota.allow_burst(burst),
+        None => quota,
+    };
+    Ok(RateLimiter::by_network(quota))
 }
 
 /// Parse a `COUNT/WINDOW` rate spec, e.g. `100/min`, `10/s`, `1000/h`.

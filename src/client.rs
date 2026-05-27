@@ -9,9 +9,7 @@ use std::{
     path::PathBuf,
     time::Duration,
 };
-use trillium_client::{
-    Body, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version,
-};
+use trillium_client::{Body, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version};
 use trillium_logger::client::ClientLogger;
 use trillium_redirect::client::FollowRedirects;
 
@@ -87,11 +85,20 @@ pub struct ClientCli {
     no_follow_redirects: bool,
 
     /// maximum number of redirects to follow before erroring
-    #[arg(long, default_value_t = 10, conflicts_with = "no_follow_redirects", help_heading = "Redirects")]
+    #[arg(
+        long,
+        default_value_t = 10,
+        conflicts_with = "no_follow_redirects",
+        help_heading = "Redirects"
+    )]
     max_redirects: u32,
 
     /// follow redirects from https to http (blocked by default)
-    #[arg(long, conflicts_with = "no_follow_redirects", help_heading = "Redirects")]
+    #[arg(
+        long,
+        conflicts_with = "no_follow_redirects",
+        help_heading = "Redirects"
+    )]
     allow_downgrade: bool,
 
     /// set the log level. add more flags for more verbosity

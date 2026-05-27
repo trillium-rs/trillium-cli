@@ -11,9 +11,8 @@ use trillium_logger::Logger;
 use trillium_proxy::{Client, Proxy, Url};
 use trillium_static::StaticFileHandler;
 
-mod directory_listing;
 mod root_path;
-use directory_listing::DirectoryListing;
+use crate::directory_listing::DirectoryListing;
 use root_path::RootPath;
 
 #[derive(Parser, Debug)]
