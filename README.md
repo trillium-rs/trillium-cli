@@ -9,6 +9,7 @@ toolkit:
 
 - **`serve`** — a static file server (and drop-in reverse proxy)
 - **`proxy`** — a reverse/forward proxy with upstream load-balancing and caching
+- **`gateway`** — a config-driven server combining static files + proxy across one or more listeners
 - **`client`** — a curl-like HTTP client that pretty-prints JSON and follows redirects
 - **`bench`** — a load generator with HDR-histogram latency statistics
 
@@ -113,6 +114,64 @@ Use `--no-cache` to disable caching entirely. When an upstream is `https://`,
 select a client TLS backend with `--client-tls` (`-k`/`--insecure` skips
 verification for self-signed dev certs).
 
+## `gateway` — config-driven server
+
+Where `serve` and `proxy` each do one thing from flags, `gateway` reads a
+[KDL](https://kdl.dev) config file and assembles the same building blocks —
+static files, reverse proxy, redirects, header rewriting, compression, rate
+limiting, TLS/h3 — into one or more listeners. It's a trillium-backed
+caddy/nginx-lite.
+
+```sh
+trillium gateway --config gateway.kdl
+trillium gateway --config gateway.kdl --check   # parse + print the resolved config, don't serve
+```
+
+A `binding` is one listener (`host:port` + optional TLS + per-binding HTTP
+tuning). Within it, ordered `route` patterns dispatch by path to a stack of
+directives:
+
+```kdl
+compression true
+rate-limit "100/min" burst=200
+
+// Opt-in response cache for proxied upstreams (off unless declared, unlike
+// `trillium proxy`). A bare `cache` node enables it with defaults.
+cache {
+    capacity "256MiB"
+    time-to-idle "5m"
+}
+
+binding ":443" {
+    tls cert="./cert.pem" key="./key.pem"
+    http { received-body-max-len "10MiB" }
+
+    route "/api/*" {
+        // /api is stripped (the route pattern controls stripping, like `files`);
+        // give the upstream a base path to forward *with* the prefix instead.
+        proxy strategy="round-robin" {
+            upstream "http://127.0.0.1:9000"
+            upstream "http://127.0.0.1:9001"
+        }
+    }
+
+    route "/old/*" { redirect "https://example.com/new" status=308 }
+
+    route "/*" {
+        headers { add "X-Served-By" "trillium"; remove "Server" }
+        files root="./public" index="index.html" directory-listing=true
+    }
+}
+```
+
+Declare multiple `binding` blocks to run several listeners in one process; a
+single `Ctrl-C` drains all of them gracefully. A bare `:443` host binds all
+interfaces (the nginx `listen :80` convention). Routes match by path
+specificity, for all HTTP methods.
+
+> Virtual hosting on a shared socket (host-header routing) is planned; for now,
+> run one binding per host.
+
 ## `client` — make requests
 
 A curl-like client that pretty-prints JSON, streams bodies, and follows
@@ -188,6 +247,7 @@ binary with only what you need:
 |--------------|--------------|:-------:|-------|
 | `serve`      | `serve`      | ✅ | static file server + reverse proxy |
 | `proxy`      | `proxy`      | ✅ | reverse/forward proxy with caching |
+| `gateway`    | `gateway`    |    | config-driven multi-listener server (KDL) |
 | `client`     | `client`     | ✅ | HTTP client |
 | `bench`      | `bench`      | ✅ | load generator |
 | `dev-server` | `dev-server` |    | watch/rebuild/restart loop (Unix only) |

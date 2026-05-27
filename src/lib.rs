@@ -13,6 +13,10 @@ pub(crate) mod bench;
 pub(crate) mod client;
 #[cfg(all(unix, feature = "dev-server"))]
 pub(crate) mod dev_server;
+#[cfg(any(feature = "serve", feature = "gateway"))]
+pub(crate) mod directory_listing;
+#[cfg(feature = "gateway")]
+pub(crate) mod gateway;
 #[cfg(feature = "grpc")]
 pub(crate) mod grpc;
 #[cfg(feature = "proxy")]
@@ -23,7 +27,8 @@ pub(crate) mod serve;
     feature = "proxy",
     feature = "client",
     feature = "serve",
-    feature = "bench"
+    feature = "bench",
+    feature = "gateway"
 ))]
 pub(crate) mod tls;
 use clap::Parser;
@@ -55,6 +60,10 @@ pub enum Cli {
     /// Run a http proxy
     Proxy(proxy::ProxyCli),
 
+    #[cfg(feature = "gateway")]
+    /// Run a config-driven server: static files + proxy across one or more listeners
+    Gateway(gateway::GatewayCli),
+
     #[cfg(feature = "grpc")]
     /// Generate Rust modules from .proto service definitions
     Grpc(grpc::GrpcCli),
@@ -74,13 +83,15 @@ impl Cli {
             Bench(b) => b.run(),
             #[cfg(feature = "proxy")]
             Proxy(p) => p.run(),
+            #[cfg(feature = "gateway")]
+            Gateway(g) => g.run(),
             #[cfg(feature = "grpc")]
             Grpc(g) => g.run(),
         }
     }
 }
 
-#[cfg(any(feature = "proxy", feature = "serve"))]
+#[cfg(any(feature = "proxy", feature = "serve", feature = "gateway"))]
 mod ratelimit;
-#[cfg(any(feature = "proxy", feature = "serve"))]
+#[cfg(any(feature = "proxy", feature = "serve", feature = "gateway"))]
 mod server_tls;

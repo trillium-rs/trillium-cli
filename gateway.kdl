@@ -1,0 +1,40 @@
+// Sample trillium gateway config (KDL v1).
+
+compression true
+rate-limit "100/min" burst=200
+
+// Response caching for proxied upstreams (opt-in). Remove this block to disable.
+cache {
+    capacity "256MiB"
+    max-body "16MiB"
+    time-to-idle "5m"
+}
+
+binding ":8080" {
+    http {
+        received-body-max-len "10MiB"
+        head-max-len "16KiB"
+    }
+
+    // Forwards /api/* to the upstream with the /api prefix stripped (the route
+    // pattern controls stripping, consistently with `files`). To forward *with*
+    // the prefix, give the upstream a base path: "http://127.0.0.1:9000/api".
+    route "/api/*" {
+        proxy strategy="round-robin" {
+            upstream "http://127.0.0.1:9000"
+            upstream "http://127.0.0.1:9001"
+        }
+    }
+
+    route "/old/*" {
+        redirect "https://example.com/new" status=308
+    }
+
+    route "/*" {
+        headers {
+            add "X-Served-By" "trillium"
+            remove "Server"
+        }
+        files root="." index="index.html" directory-listing=true
+    }
+}
