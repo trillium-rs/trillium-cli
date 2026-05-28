@@ -200,6 +200,13 @@ doc = false
 [profile.release]
 lto = "fat"
 
+# The profile that 'dist' will build with. Matches release (fat LTO): a one-time
+# cost paid in release CI that every downloader of the prebuilt binary benefits
+# from, and keeps the shipped binary identical to `cargo install`.
+[profile.dist]
+inherits = "release"
+lto = "fat"
+
 
 # [patch.crates-io]
 # trillium-html-rewriter = { path = "../trillium-html-rewriter" }
