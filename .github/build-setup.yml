@@ -1,0 +1,18 @@
+# Injected into dist's `build-local-artifacts` jobs via the
+# `github-build-setup` config key (path is relative to .github/workflows/).
+# Mirrors the prerequisites our CI (ci.yaml) needs to build the shipped binary.
+
+# aws-lc-rs (pulled in by the rustls + h3 features) needs cmake on every platform
+# and NASM on Windows.
+- name: Install cmake (aws-lc-rs)
+  uses: lukka/get-cmake@v4.3.1
+- name: Install NASM (aws-lc-rs on Windows)
+  if: runner.os == 'Windows'
+  uses: ilammy/setup-nasm@v1
+# arm64 macOS links with lld to dodge the ld-prime symbol-length assertion.
+# See .cargo/config.toml for the matching -fuse-ld=ld64.lld rustflag.
+- name: Install lld for arm64 macOS linking
+  if: runner.os == 'macOS'
+  run: |
+    brew install lld
+    echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"

@@ -1,2 +1,6 @@
 [workspace]
 features_always_increment_minor = true
+# Leave the GitHub Release as a draft with the changelog as its body. dist's
+# release workflow (create-release = false in dist-workspace.toml) then uploads
+# the prebuilt binaries/installers to it and undrafts when the upload completes.
+git_release_draft = true
