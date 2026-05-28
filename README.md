@@ -3,6 +3,8 @@
 [![crates.io version](https://img.shields.io/crates/v/trillium-cli.svg)](https://crates.io/crates/trillium-cli)
 [![license](https://img.shields.io/crates/l/trillium-cli.svg)](#license)
 
+Full documentation: **<https://cli.trillium.rs>**.
+
 A single `trillium` binary that bundles the most useful pieces of the
 [trillium.rs](https://trillium.rs) web stack into a batteries-included HTTP
 toolkit:
