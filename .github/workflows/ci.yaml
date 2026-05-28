@@ -39,6 +39,17 @@ jobs:
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
+    # Apple's new linker (ld-prime) aborts with
+    #   ld: Assertion failed: (name.size() <= maxLength), ... SymbolString.cpp
+    # on this crate's very long monomorphized symbol names (only on the arm64
+    # branch-reloc path, which is why local x86_64 builds link fine). lld has no
+    # such limit, so use it for the macOS link step.
+    - name: Use lld on macOS
+      if: runner.os == 'macOS'
+      run: |
+        brew install lld
+        echo "RUSTFLAGS=-Clink-arg=-fuse-ld=$(brew --prefix lld)/bin/ld64.lld" >> "$GITHUB_ENV"
+
     - name: Build (non-Windows)
       if: runner.os != 'Windows'
       uses: actions-rs/cargo@v1
