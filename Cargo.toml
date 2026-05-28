@@ -85,7 +85,12 @@ proxy = [
   "trillium-cache/client"
 ]
 gateway = [
+        # Per-host SNI TLS (`gateway/sni.rs`) is built directly on rustls
+        # (`ServerConfig`/`CertifiedKey` + aws-lc-rs), so the gateway's TLS
+        # support is rustls-only by construction.
+        "rustls",
         "dep:trillium",
+        "dep:trillium-http",
         "dep:trillium-logger",
         "dep:trillium-static",
         "dep:trillium-proxy",
