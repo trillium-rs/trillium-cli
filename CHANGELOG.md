@@ -6,6 +6,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/trillium-rs/trillium-cli/compare/v0.4.0...v0.5.0) - 2026-05-28
+
+### Added
+
+- *(gateway)* rewrite html directive
+- *(gateway)* sni
+- [**breaking**] vhosts
+- [**breaking**] trillium gateway
+- *(serve)* add directory listing
+- add ratelimit, update readme
+- some more usability/ergonomics improvements
+- add follow-redirects and cache
+- add `trillium grpc` subcommand
+
+### Fixed
+
+- feature gating
+
+### Other
+
+- add dist workflow
+- *(deps)* lock file maintenance
+- add docs site
+- fix ci
+- *(deps)* lock file maintenance
+- lock
+- don't build openssl on windows
+- update lockfile
+
 ## [0.4.0](https://github.com/trillium-rs/trillium-cli/compare/v0.3.8...v0.4.0) - 2026-05-07
 
 ### Added
