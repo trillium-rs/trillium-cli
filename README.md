@@ -14,6 +14,7 @@ toolkit:
 - **`gateway`** — a config-driven server combining static files + proxy across one or more listeners
 - **`client`** — a curl-like HTTP client that pretty-prints JSON and follows redirects
 - **`bench`** — a load generator with HDR-histogram latency statistics
+- **`dev-server`** — watch/rebuild/restart loop with browser live-reload for trillium apps (opt-in feature, Unix only)
 
 TLS is built in (rustls by default), and with the default `h3` feature the
 servers also speak HTTP/3 over QUIC. Over TLS the `client` negotiates HTTP/2 via
@@ -293,6 +294,45 @@ Results are reported as an HDR-histogram latency summary. Add `--json` for a
 machine-readable report on stdout, or `--csv <path>` for per-request timing
 data. `--connections`, `--requests`, `--warmup`, and `--timeout` round out the
 common knobs.
+
+## `dev-server` — live-reload for trillium apps
+
+A watch / rebuild / restart loop with browser live-reload. It's feature-gated
+and Unix-only, so install it explicitly:
+
+```sh
+cargo install trillium-cli --features dev-server
+```
+
+Run it from your app's project root and open the address it listens on:
+
+```sh
+trillium dev-server          # then visit http://localhost:8080
+```
+
+It watches your source, rebuilds with `cargo` on change, restarts your binary,
+and serves a reload-injecting proxy in front of it. The dev server **adopts your
+`HOST`/`PORT`** (so you visit the same address you'd use in production) and runs
+your app on a private port behind the proxy, passing it through as `PORT`. Use
+`--app-port` if your app hardcodes its own port instead of reading `PORT`.
+
+In a workspace it watches the crate it builds **plus the workspace-local crates
+it depends on**, so editing a path-dependency library reloads the app using it.
+Select what to build with cargo's own flags after a `--`:
+
+```sh
+trillium dev-server -- -p my-app --features dev
+trillium dev-server --example hello-world
+```
+
+When a build fails, the errors render as an overlay in the browser (the previous
+build keeps running underneath). Click a `file:line:column` and it opens in your
+editor — `$EDITOR` by default, or `--editor "code --wait"` — jumping to the
+line. It also applies safe dev-build speedups (trimmed debug info + a fast linker
+if one's installed); disable them with `--no-fast`.
+
+See the [`dev-server` guide](https://cli.trillium.rs/dev-server) for the full
+details.
 
 ## HTTPS
 
