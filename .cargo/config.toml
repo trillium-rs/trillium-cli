@@ -2,7 +2,10 @@
 #   ld: Assertion failed: (name.size() <= maxLength), ... SymbolString.cpp
 # on this crate's very long monomorphized symbol names. This only happens on the
 # arm64 branch-reloc path, which is why x86_64 macOS builds link fine. lld has no
-# such limit, so use it for the macOS arm64 link step. `ld64.lld` must be on PATH
-# (CI installs it via Homebrew; see .github/build-setup.yml).
+# such limit, so use it for the macOS arm64 link step. `ld64.lld` must be on PATH.
+#
+# NOTE: this only covers LOCAL builds. dist's release CI sets RUSTFLAGS in-process,
+# which makes Cargo ignore this [target.*] table, so the release build injects the
+# same flag via RUSTFLAGS instead — see .github/build-setup.yml.
 [target.aarch64-apple-darwin]
 rustflags = ["-Clink-arg=-fuse-ld=ld64.lld"]
