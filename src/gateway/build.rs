@@ -17,6 +17,7 @@ use super::{
     upstream,
 };
 use crate::{directory_listing::DirectoryListing, tls::Tls};
+use std::io;
 use trillium::{BoxedHandler, Conn, Handler, HttpConfig, KnownHeaderName, Method, Status};
 use trillium_cache::{InMemoryStorage, client::Cache};
 use trillium_client::Client;
@@ -151,20 +152,23 @@ fn describe_directive(directive: &Directive) -> String {
     }
 }
 
-/// Build one binding's listener `Config` (host/port, shared swansong, per-binding
-/// `HttpConfig`, TLS) and spawn it, returning its [`ServerHandle`]. TLS is
-/// applied inline so the concrete server type stays inferred.
+/// Build one binding's listeners (shared swansong, per-binding `HttpConfig`, TLS)
+/// and spawn them, returning its [`ServerHandle`]. Each address is claimed
+/// eagerly via the [`ListenerConfig`] builder, so a bind failure (port in use,
+/// unresolvable host) surfaces here as an `Err` — fail-fast — instead of as a
+/// silently dead listener after the server task spawns.
+///
+/// [`ListenerConfig`]: trillium_server_common::ListenerConfig
 pub fn spawn_binding(
     binding: &Binding,
     config: &Config,
     swansong: &Swansong,
     client: &Client,
-) -> ServerHandle {
+) -> io::Result<ServerHandle> {
     let (host, port) = parse_listen(&binding.listen);
+    let addr = (host.as_str(), port);
 
     let mut server = trillium_smol::config()
-        .with_host(&host)
-        .with_port(port)
         .with_swansong(swansong.clone())
         .without_signals();
 
@@ -177,21 +181,26 @@ pub fn spawn_binding(
 
     let handler = binding_handler(binding, config, client);
 
-    // TLS (with per-host SNI cert selection) is built from the binding's and its
-    // hosts' cert configs. Applied inline so the concrete server type stays
-    // inferred; both branches erase to `ServerHandle`. `gateway` currently
-    // implies `rustls`, so the `tls{}` block is always actionable.
-    if let Some(tls) = super::sni::build(binding) {
-        #[cfg(feature = "h3")]
-        return server
-            .with_acceptor(tls.acceptor)
-            .with_quic(tls.quic)
-            .spawn(handler);
-        #[cfg(not(feature = "h3"))]
-        return server.with_acceptor(tls.acceptor).spawn(handler);
-    }
+    // The global server config (swansong, HTTP config, …) carries over to the
+    // multi-listener builder; we add the binding's listener topology to it. TLS
+    // (with per-host SNI cert selection) is built from the binding's and its
+    // hosts' cert configs; `gateway` currently implies `rustls`, so the `tls{}`
+    // block is always actionable.
+    let listeners = server.listeners();
+    let listeners = match super::sni::build(binding) {
+        Some(tls) => {
+            let listeners = listeners.bind_tls(addr, tls.acceptor)?;
+            // On h3 builds, a QUIC listener shares the binding's port and is
+            // advertised to clients via an `alt-svc` header on the TLS listener.
+            #[cfg(feature = "h3")]
+            let listeners = listeners.bind_quic(addr, tls.quic)?;
 
-    server.spawn(handler)
+            listeners
+        }
+        None => listeners.bind_tcp(addr)?,
+    };
+
+    Ok(listeners.spawn(handler))
 }
 
 /// Build a `trillium_http::HttpConfig` from the `http {}` block, applying only

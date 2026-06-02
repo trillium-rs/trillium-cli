@@ -62,15 +62,28 @@ impl GatewayCli {
         // One Swansong shared by every binding: a single shutdown signal drains
         // them all together. Each server's own signal handling is disabled
         // (`without_signals`) so we register once, on the main thread, below.
-        build::print_startup(&config);
-
+        //
         // One client (cache + connection pool) shared by every proxy directive.
         let client = build::build_client(&config);
         let swansong = Swansong::new();
         let mut handles = Vec::with_capacity(config.bindings.len());
         for binding in &config.bindings {
-            handles.push(build::spawn_binding(binding, &config, &swansong, &client));
+            match build::spawn_binding(binding, &config, &swansong, &client) {
+                Ok(handle) => handles.push(handle),
+                // A bind failed (port in use, unresolvable host). Drain the
+                // bindings that did come up, then exit so the operator sees the
+                // problem immediately rather than a partially-serving gateway.
+                Err(error) => {
+                    eprintln!("failed to bind {}: {error}", binding.listen);
+                    swansong.shut_down().block();
+                    std::process::exit(1);
+                }
+            }
         }
+
+        // Announce only once every listener is actually bound, so the green
+        // banner never advertises a binding that failed to come up.
+        build::print_startup(&config);
 
         wait_for_shutdown_signal();
         log::info!("shutting down {} binding(s)", handles.len());
