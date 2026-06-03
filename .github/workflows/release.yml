@@ -132,11 +132,12 @@ jobs:
       - name: "Install NASM (aws-lc-rs on Windows)"
         uses: "ilammy/setup-nasm@v1"
         if: "runner.os == 'Windows'"
-      - name: "Install lld for arm64 macOS linking"
-        if: "runner.os == 'macOS'"
+      - name: "Use lld for arm64 macOS linking"
+        if: "runner.os == 'macOS' && runner.arch == 'ARM64'"
         run: |
           brew install lld
           echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
+          echo "RUSTFLAGS=-Clink-arg=-fuse-ld=ld64.lld" >> "$GITHUB_ENV"
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest
