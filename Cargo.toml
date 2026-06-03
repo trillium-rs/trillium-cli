@@ -58,8 +58,10 @@ client = [
   "dep:size",
   "dep:trillium-redirect",
   "dep:trillium-logger",
+  "dep:trillium-compression",
   "dep:humantime",
-  "trillium-logger/client"
+  "trillium-logger/client",
+  "trillium-compression/client"
 ]
 bench = [
         "client",
@@ -130,7 +132,7 @@ async-io = { version = "2.6.0", optional = true }
 blocking = { version = "1.6.2", optional = true }
 env_logger = "0.11.10"
 futures-lite = { version = "2.6.1", optional = true }
-log = "0.4.30"
+log = "0.4.31"
 serde = { version = "1.0.228", features = ["derive"], optional = true }
 serde_json = { version = "1.0.150", optional = true }
 
@@ -146,25 +148,25 @@ trillium-websockets = { version = "0.8.0", features = [
         "json",
 ], optional = true }
 trillium-smol = { version = "0.6.2" }
-trillium-client = { version = "0.9.3", features = [
+trillium-client = { version = "0.9.4", features = [
         "sonic-rs",
 ], optional = true }
-trillium-http = { version = "1.3.3", optional = true }
+trillium-http = { version = "1.3.4", optional = true }
 hdrhistogram = { version = "7.5.4", optional = true }
 indicatif = { version = "0.18.4", optional = true }
 humantime = { version = "2.3.0", optional = true }
 async-channel = { version = "2.5.0", optional = true }
 fastrand = { version = "2.4.1", optional = true }
 trillium-logger = { version = "0.5.3", optional = true }
-trillium-html-rewriter = { version = "0.5.0", optional = true }
+trillium-html-rewriter = { version = "0.5", optional = true }
 trillium-quinn = { version = "0.1.4", optional = true, features = ["webpki-roots"] }
 trillium-openssl = { version = "0.2", optional = true }
-trillium-server-common = "0.7.3"
+trillium-server-common = "0.7.4"
 trillium-grpc-codegen = { version = "0.2", optional = true }
 trillium-cache = { version = "0.1", optional = true }
 trillium-redirect = { version = "0.3", optional = true, features = ["client"] }
 trillium-caching-headers = { version = "0.4.0", optional = true }
-trillium-compression = { version = "0.3.0", optional = true }
+trillium-compression = { version = "0.3.1", optional = true }
 trillium-ratelimit = { version = "0.0.0", optional = true }
 knus = { version = "3.3.1", optional = true }
 miette = { version = "7.6.0", features = ["fancy"], optional = true }

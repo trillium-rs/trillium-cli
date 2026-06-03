@@ -10,6 +10,7 @@ use std::{
     time::Duration,
 };
 use trillium_client::{Body, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version};
+use trillium_compression::{CompressionAlgorithm, client::Compression};
 use trillium_logger::client::ClientLogger;
 use trillium_redirect::client::FollowRedirects;
 
@@ -50,6 +51,14 @@ pub struct ClientCli {
     /// trillium client get http://httpbin.org/headers -H Accept=application/json Authorization="Basic u:p"
     #[arg(short = 'H', long, value_parser = parse_header, verbatim_doc_comment)]
     headers: Vec<(String, String)>,
+
+    /// compress the request body with this encoding
+    ///
+    /// responses are always decoded transparently regardless of this flag; it
+    /// only controls the outbound body. there is no negotiation for request
+    /// bodies, so only use this against an origin known to accept it.
+    #[arg(short = 'c', long, verbatim_doc_comment, value_enum)]
+    compression: Option<RequestEncoding>,
 
     /// tls implementation
     ///
@@ -155,18 +164,45 @@ impl From<HttpVersion> for Version {
     }
 }
 
+/// Content-codings that can be applied to an outbound request body.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, clap::ValueEnum)]
+enum RequestEncoding {
+    /// Zstandard
+    Zstd,
+
+    /// Brotli
+    #[value(name = "br", alias = "brotli")]
+    Brotli,
+
+    /// gzip
+    Gzip,
+}
+
+impl From<RequestEncoding> for CompressionAlgorithm {
+    fn from(value: RequestEncoding) -> Self {
+        match value {
+            RequestEncoding::Zstd => CompressionAlgorithm::Zstd,
+            RequestEncoding::Brotli => CompressionAlgorithm::Brotli,
+            RequestEncoding::Gzip => CompressionAlgorithm::Gzip,
+        }
+    }
+}
+
 impl ClientCli {
     async fn build(&self) -> Conn {
         // `Option<T>` is itself a `ClientHandler`, so a `None` here drops the
         // follow-redirects step entirely rather than capping it at zero.
-        let client = crate::tls::build_client(self.tls, self.insecure).with_handler((
+        let client_handler = (
+            Compression::new(),
             std::io::stdout().is_terminal().then(ClientLogger::new),
             (!self.no_follow_redirects).then(|| {
                 FollowRedirects::new()
                     .with_max_redirects(self.max_redirects)
                     .with_allow_downgrade(self.allow_downgrade)
             }),
-        ));
+        );
+
+        let client = crate::tls::build_client(self.tls, self.insecure).with_handler(client_handler);
         let client = if self.no_timeout {
             client.without_timeout()
         } else {
@@ -189,6 +225,10 @@ impl ClientCli {
             conn.set_request_body(body.clone());
         } else if !std::io::stdin().is_terminal() {
             conn.set_request_body(Body::new_streaming(Unblock::new(std::io::stdin()), None));
+        }
+
+        if let Some(encoding) = self.compression {
+            conn.insert_state(CompressionAlgorithm::from(encoding));
         }
 
         conn
@@ -279,7 +319,9 @@ impl ClientCli {
     }
 
     pub fn run(self) {
-        futures_lite::future::block_on(async move {
+        let runtime = trillium_smol::SmolRuntime::default();
+
+        runtime.block_on(async move {
             env_logger::Builder::new()
                 .parse_filters(&format!(
                     "{},quinn=off,quinn_proto=off,rustls=off,tracing=off",
@@ -300,6 +342,8 @@ impl ClientCli {
             let mut conn = self.build().await;
 
             if self.dry_run {
+                use trillium_client::ClientHandler;
+                let _ = conn.client().clone().handler().run(&mut conn).await;
                 self.print_request(&conn);
                 return;
             }
