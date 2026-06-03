@@ -3686,9 +3686,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-client"
-version = "0.9.3"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa5b4aa0d3bbe68026a9c090b7bed0a639a27cec404635fc34a9e6aa099c7790"
+checksum = "416fa53f7f96648624de461158cd75b87b0897a2f76c72b0ae7b922208c66d08"
 dependencies = [
  "crossbeam-queue",
  "dashmap",
@@ -3717,6 +3717,7 @@ dependencies = [
  "futures-lite 2.6.1",
  "log",
  "trillium",
+ "trillium-client",
 ]
 
 [[package]]
