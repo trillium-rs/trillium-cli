@@ -19,7 +19,7 @@ jobs:
       # let a GITHUB_TOKEN-pushed tag trigger another workflow, which would leave
       # dist's release.yml (on: push: tags) silently un-triggered.
       - name: Generate GitHub App token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ secrets.RELEASE_PLZ_APP_ID }}
