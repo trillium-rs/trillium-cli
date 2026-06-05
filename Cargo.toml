@@ -162,7 +162,7 @@ trillium-html-rewriter = { version = "0.6", optional = true }
 trillium-quinn = { version = "0.1.4", optional = true, features = ["webpki-roots"] }
 trillium-openssl = { version = "0.2", optional = true }
 trillium-server-common = "0.7.4"
-trillium-grpc-codegen = { version = "0.2", optional = true }
+trillium-grpc-codegen = { version = "0.3", optional = true }
 trillium-cache = { version = "0.1", optional = true }
 trillium-redirect = { version = "0.3", optional = true, features = ["client"] }
 trillium-caching-headers = { version = "0.4.1", optional = true }
