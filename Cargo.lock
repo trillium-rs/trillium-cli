@@ -1827,9 +1827,9 @@ dependencies = [
 
 [[package]]
 name = "lol-async"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea40f4c8752413a6d0c7c7d255858904e6110bbea7b2fa5888752ea2113de313"
+checksum = "f01b101a275aad44a7ae34893d9b20826be20289446a02e97d2ce666d3d80c7b"
 dependencies = [
  "futures-lite 2.6.1",
  "lol_html",
@@ -1838,9 +1838,9 @@ dependencies = [
 
 [[package]]
 name = "lol_html"
-version = "2.9.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00aad58f6ec3990e795943872f13651e7a5fa59dca2c8f31a74faf8a0e0fb652"
+checksum = "2ae574a677ef0443a0bd3c291f0cab9d1e61a3ad85a1515e3cfc0bc720d5a48e"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -3750,9 +3750,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-html-rewriter"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55d4a12ac89d26071b96aa2299b40ca1970da4879a3710dd898f456a95ea1da0"
+checksum = "c2fad8a16e8ab243f9ee51e36b54715eed44a50f50ef89c5959433467243ba42"
 dependencies = [
  "futures-lite 2.6.1",
  "lol-async",
@@ -4669,9 +4669,9 @@ checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
 
 [[package]]
 name = "yoke"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abe8c5fda708d9ca3df187cae8bfb9ceda00dd96231bed36e445a1a48e66f9ca"
+checksum = "709fe23a0424b6a435d82152b1bd3fdfb0833487d5fa90d05d42762a9891fef5"
 dependencies = [
  "stable_deref_trait",
  "yoke-derive",

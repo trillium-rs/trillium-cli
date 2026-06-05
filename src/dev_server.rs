@@ -967,16 +967,14 @@ mod proxy_app {
                         (State::new(state), WebSocket::new(live_reload)),
                     ),
                 Proxy::new(client, &*upstream),
-                HtmlRewriter::new(|| Settings {
-                    element_content_handlers: vec![element!("body", |el| {
+                HtmlRewriter::new(|| {
+                    Settings::new_send().append_element_content_handler(element!("body", |el| {
                         el.append(
                             r#"<script src="/_dev_server.js"></script>"#,
                             ContentType::Html,
                         );
                         Ok(())
-                    })],
-
-                    ..Settings::new_send()
+                    }))
                 }),
             ));
     }
