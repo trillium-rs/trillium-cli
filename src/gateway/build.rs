@@ -276,7 +276,7 @@ pub fn binding_handler(binding: &Binding, config: &Config, client: &Client) -> i
 /// Build a router over a set of routes, registering each route's directive
 /// stack for all HTTP methods.
 fn build_router(routes: &[Route], client: &Client) -> Router {
-    let mut router = Router::new();
+    let mut router = Router::new().with_method_not_allowed();
     for route in routes {
         router = router.any(
             ROUTE_METHODS,
@@ -314,43 +314,35 @@ fn push_directive(stack: &mut Vec<BoxedHandler>, directive: &Directive, client: 
 fn push_rewrite_html(stack: &mut Vec<BoxedHandler>, rewrite: &RewriteHtmlDirective) {
     let selects = rewrite.selects.clone();
     // `HtmlRewriter::new` wants a `Fn() -> Settings`: lol-html's handlers are
-    // single-use, so fresh ones are built per rewritten response. Borrow (don't
-    // consume) `selects` so the closure stays `Fn`.
-    let handler = HtmlRewriter::new(move || Settings {
-        element_content_handlers: selects
-            .iter()
-            .cloned()
-            .map(|SelectBlock { selector, ops }| {
-                element!(selector, move |el| {
-                    for op in &ops {
-                        match op {
-                            ElementOp::SetAttribute(name, value) => {
-                                let _ = el.set_attribute(name, value);
-                            }
-                            ElementOp::RemoveAttribute(name) => el.remove_attribute(name),
-                            ElementOp::Before(html) => el.before(html, ContentType::Html),
-                            ElementOp::After(html) => el.after(html, ContentType::Html),
-                            ElementOp::Prepend(html) => el.prepend(html, ContentType::Html),
-                            ElementOp::Append(html) => el.append(html, ContentType::Html),
-                            ElementOp::SetInner(html) => {
-                                el.set_inner_content(html, ContentType::Html)
-                            }
-                            ElementOp::SetText(text) => {
-                                el.set_inner_content(text, ContentType::Text)
-                            }
-                            ElementOp::Replace(html) => el.replace(html, ContentType::Html),
-                            ElementOp::SetTag(name) => {
-                                let _ = el.set_tag_name(name);
-                            }
-                            ElementOp::Remove => el.remove(),
-                            ElementOp::Unwrap => el.remove_and_keep_content(),
+    // single-use, so fresh ones are built per rewritten response.
+    let handler = HtmlRewriter::new(move || {
+        let mut settings = Settings::new_send();
+        for SelectBlock { selector, ops } in selects.clone() {
+            settings = settings.append_element_content_handler(element!(selector, move |el| {
+                for op in &ops {
+                    match op {
+                        ElementOp::SetAttribute(name, value) => {
+                            let _ = el.set_attribute(name, value);
                         }
+                        ElementOp::RemoveAttribute(name) => el.remove_attribute(name),
+                        ElementOp::Before(html) => el.before(html, ContentType::Html),
+                        ElementOp::After(html) => el.after(html, ContentType::Html),
+                        ElementOp::Prepend(html) => el.prepend(html, ContentType::Html),
+                        ElementOp::Append(html) => el.append(html, ContentType::Html),
+                        ElementOp::SetInner(html) => el.set_inner_content(html, ContentType::Html),
+                        ElementOp::SetText(text) => el.set_inner_content(text, ContentType::Text),
+                        ElementOp::Replace(html) => el.replace(html, ContentType::Html),
+                        ElementOp::SetTag(name) => {
+                            let _ = el.set_tag_name(name);
+                        }
+                        ElementOp::Remove => el.remove(),
+                        ElementOp::Unwrap => el.remove_and_keep_content(),
                     }
-                    Ok(())
-                })
-            })
-            .collect(),
-        ..Settings::new_send()
+                }
+                Ok(())
+            }));
+        }
+        settings
     });
     stack.push(BoxedHandler::new(handler));
 }
