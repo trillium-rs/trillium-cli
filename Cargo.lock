@@ -3762,9 +3762,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-http"
-version = "1.3.4"
+version = "1.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac97f904f7f57860124edba0c51a727d6fa11dd8881603d1ce97d70c56d3157a"
+checksum = "f8417646ee318a7294d410493095427a18eb284f08f85baba502d504d9046764"
 dependencies = [
  "atomic-waker",
  "encoding_rs",
@@ -3773,7 +3773,6 @@ dependencies = [
  "fieldwork",
  "futures-lite 2.6.1",
  "hashbrown 0.17.1",
- "httparse",
  "httpdate",
  "log",
  "memchr",
