@@ -6,6 +6,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/trillium-rs/trillium-cli/compare/v0.6.0...v0.7.0) - 2026-06-08
+
+### Added
+
+- *(grpc)* add support for --emit
+- add client retry handler
+- *(client)* add compression
+
+### Fixed
+
+- *(deps)* update rust crate trillium-grpc-codegen to 0.3
+- release process
+
+### Other
+
+- update docs
+- update secret names
+- update get-cmake
+- update lockfile
+- *(deps)* update rust crate trillium-http to v1.3.6
+- update html-rewriter, caching-headers, and router
+- *(deps)* lock file maintenance
+- *(deps)* update rust crate trillium-router to v0.5.1
+- *(deps)* update rust crate trillium-caching-headers to v0.4.1
+- *(deps)* update actions/create-github-app-token action to v3
+- *(deps)* update rust crate log to v0.4.32
+- *(deps)* update actions/upload-pages-artifact action to v5
+- *(deps)* update react monorepo to v19.2.7
+- regenerate release.yml
+- use new listeners interface
+
 ## [0.6.0](https://github.com/trillium-rs/trillium-cli/compare/v0.5.0...v0.6.0) - 2026-05-29
 
 ### Added
