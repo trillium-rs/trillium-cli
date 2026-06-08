@@ -18,7 +18,10 @@
 # env and preserves it, so exporting it via $GITHUB_ENV is the supported path.
 - name: Use lld for arm64 macOS linking
   if: runner.os == 'macOS' && runner.arch == 'ARM64'
+  # Use `-fuse-ld=lld`, NOT `-fuse-ld=ld64.lld`: Apple clang prepends `ld64.` to
+  # the -fuse-ld value, so `lld` -> `ld64.lld` (correct) while `ld64.lld` ->
+  # `ld64.ld64.lld` and fails with "invalid linker name" even with lld on PATH.
   run: |
     brew install lld
     echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
-    echo "RUSTFLAGS=-Clink-arg=-fuse-ld=ld64.lld" >> "$GITHUB_ENV"
+    echo "RUSTFLAGS=-Clink-arg=-fuse-ld=lld" >> "$GITHUB_ENV"
