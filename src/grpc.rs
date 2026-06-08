@@ -1,6 +1,18 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
 use trillium_grpc_codegen::{Options, generate_from_proto};
+
+/// Which halves of the service to generate.
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum Emit {
+    /// the client and the server (the default)
+    #[default]
+    Both,
+    /// only the client: the `<Service>Client` struct and its call methods
+    Client,
+    /// only the server: the service trait and the `<Service>Server<T>` handler
+    Server,
+}
 
 /// Generate Rust modules from a .proto service definition.
 ///
@@ -22,6 +34,13 @@ pub struct GrpcCli {
     /// the parent directory of the .proto is included automatically
     #[arg(short = 'I', long = "include")]
     includes: Vec<PathBuf>,
+
+    /// which halves to generate: `both`, `client`, or `server`
+    ///
+    /// Generate only the half you need: `client` for a crate that calls the
+    /// service, `server` for one that implements it. Defaults to both.
+    #[arg(long, value_enum, default_value_t = Emit::Both)]
+    emit: Emit,
 }
 
 impl GrpcCli {
@@ -36,6 +55,8 @@ impl GrpcCli {
 
         let opts = Options {
             include_paths: includes,
+            client: self.emit != Emit::Server,
+            server: self.emit != Emit::Client,
             ..Options::default()
         };
 
