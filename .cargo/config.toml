@@ -4,8 +4,13 @@
 # arm64 branch-reloc path, which is why x86_64 macOS builds link fine. lld has no
 # such limit, so use it for the macOS arm64 link step. `ld64.lld` must be on PATH.
 #
+# Pass `-fuse-ld=lld`, NOT `-fuse-ld=ld64.lld`: on Darwin, Apple clang prepends
+# `ld64.` to the -fuse-ld value before searching PATH, so `lld` resolves to the
+# `ld64.lld` binary, while `ld64.lld` resolves to a nonexistent `ld64.ld64.lld`
+# and fails with "invalid linker name".
+#
 # NOTE: this only covers LOCAL builds. dist's release CI sets RUSTFLAGS in-process,
 # which makes Cargo ignore this [target.*] table, so the release build injects the
 # same flag via RUSTFLAGS instead — see .github/build-setup.yml.
 [target.aarch64-apple-darwin]
-rustflags = ["-Clink-arg=-fuse-ld=ld64.lld"]
+rustflags = ["-Clink-arg=-fuse-ld=lld"]

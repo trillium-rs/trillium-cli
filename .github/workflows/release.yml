@@ -137,7 +137,7 @@ jobs:
         run: |
           brew install lld
           echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
-          echo "RUSTFLAGS=-Clink-arg=-fuse-ld=ld64.lld" >> "$GITHUB_ENV"
+          echo "RUSTFLAGS=-Clink-arg=-fuse-ld=lld" >> "$GITHUB_ENV"
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest
