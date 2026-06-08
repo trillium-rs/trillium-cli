@@ -39,6 +39,11 @@ trillium client get https://httpbin.org/json | jq .slideshow.title
 Raise the verbosity with `-v` to also print the request line, request and
 response headers, peer address, negotiated version, and any response trailers.
 
+A one-line-per-request log is shown automatically when stdout is a terminal, and
+suppressed when output is piped or redirected so it can't corrupt the response
+body. Pass `--always-log` to force it on regardless — it then writes to stderr,
+keeping stdout clean. This is handy for watching `--retry` attempts in a script.
+
 ## Request bodies
 
 Provide a body inline, from a file, or from stdin — the three forms are
@@ -68,6 +73,25 @@ trillium client post https://httpbin.org/anything \
   -H Authorization="Bearer $TOKEN" -H Content-Type=application/json \
   -b '{"hello": "world"}'
 ```
+
+## Compression
+
+`-c` / `--compression` compresses the **request** body with the given encoding
+before sending it:
+
+```sh
+trillium client post https://api.example.com -f ./big.json -c zstd
+```
+
+| Value          | Encoding    |
+|----------------|-------------|
+| `zstd`         | Zstandard   |
+| `br`           | Brotli (alias `brotli`) |
+| `gzip`         | gzip        |
+
+Responses are always decoded transparently regardless of this flag — it only
+controls the outbound body. There is no content negotiation for request bodies,
+so only use it against an origin you know accepts the encoding.
 
 ## Saving the body
 
@@ -123,6 +147,39 @@ trillium client post https://api.example.com -b '{}' --dry-run
 `--dry-run` is handy for inspecting exactly what would go over the wire —
 method, URL, headers, and body — without making a request.
 
+## Retries
+
+`--retry N` retries a failed request up to `N` times (the default `0` disables
+retries entirely):
+
+```sh
+trillium client get https://flaky.example.com --retry 3
+```
+
+Retries cover transport errors (connection refused, reset, timeout) and the
+retryable statuses `429 Too Many Requests` and `503 Service Unavailable`, using
+exponential backoff and honoring a server-advertised `Retry-After`.
+
+Only **idempotent** methods (`GET`, `HEAD`, `PUT`, `DELETE`, `OPTIONS`, `TRACE`)
+are retried unless you pass `--retry-all-methods`. A body streamed from stdin or
+`--file` can't be replayed, so such a request is never retried — use `--body`
+for a retryable body.
+
+| Flag                  | Default | Notes                                                          |
+|-----------------------|---------|----------------------------------------------------------------|
+| `--retry`             | `0`     | maximum retry attempts (`0` disables)                          |
+| `--retry-delay`       |         | fixed delay between retries instead of exponential backoff (e.g. `500ms`) |
+| `--retry-max-time`    | `30s`   | total wall-clock budget across all attempts                    |
+| `--retry-all-methods` |         | also retry non-idempotent methods (`POST`, `PATCH`)            |
+
+Keep `--retry-max-time` at least as large as `--timeout`: the first attempt uses
+the per-request timeout, and the budget caps every attempt after it.
+`--retry-all-methods` is only safe when the endpoint is idempotent in practice
+(or guarded by an idempotency key), since replaying it may duplicate a side
+effect.
+
+To watch retry attempts in a script, pass `--always-log` (see [Output](#output)).
+
 ## Full flag reference
 
 ```
@@ -137,10 +194,12 @@ Options:
   -f, --file <FILE>
   -o, --output-file [<OUTPUT_FILE>]
   -H, --headers <HEADERS>          KEY=VALUE, repeatable
+  -c, --compression <COMPRESSION>  compress the request body: zstd, br, gzip
   -t, --tls <TLS>                  [default: rustls]
       --http-version <HTTP_VERSION>  [default: 1.1]
   -k, --insecure
       --dry-run
+      --always-log
   -v, --verbose...
   -q, --quiet...
   -h, --help
@@ -153,4 +212,10 @@ Redirects:
       --no-follow-redirects
       --max-redirects <MAX_REDIRECTS>  [default: 10]
       --allow-downgrade
+
+Retries:
+      --retry <N>                  [default: 0]
+      --retry-delay <RETRY_DELAY>
+      --retry-max-time <RETRY_MAX_TIME>
+      --retry-all-methods
 ```

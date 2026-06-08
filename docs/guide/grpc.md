@@ -48,6 +48,26 @@ definitions `import` from elsewhere:
 trillium grpc ./proto/api.proto -I ./proto/common -I ./vendor/googleapis
 ```
 
+## Generating only the client or server
+
+By default `grpc` emits both halves of each service: the `<Service>Client` struct
+with its call methods, and the service trait plus the `<Service>Server<T>`
+handler. Pass `--emit` to generate just the half you need:
+
+```sh
+trillium grpc ./proto/echo.proto --emit client   # only the calling side
+trillium grpc ./proto/echo.proto --emit server   # only the implementing side
+```
+
+| Value    | Generates                                                         |
+|----------|------------------------------------------------------------------|
+| `both`   | client and server (the default)                                  |
+| `client` | only the `<Service>Client` struct and its call methods           |
+| `server` | only the service trait and the `<Service>Server<T>` handler      |
+
+Use `client` for a crate that only calls the service and `server` for one that
+only implements it, so each side avoids compiling code it never uses.
+
 ## Full flag reference
 
 ```
@@ -59,5 +79,6 @@ Arguments:
 
 Options:
   -I, --include <INCLUDES>  Additional include path for resolving imports
+      --emit <EMIT>         Which halves to generate: both, client, server  [default: both]
   -h, --help
 ```
