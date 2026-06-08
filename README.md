@@ -272,8 +272,10 @@ cat ./body.json | trillium client post https://httpbin.org/anything
 ```
 
 Other handy flags: `--output-file` to save the body, `--dry-run` to print the
-request without sending it, `--timeout`/`--no-timeout`, and
-`--no-follow-redirects` / `--max-redirects` to control redirect behavior.
+request without sending it, `-c`/`--compression` to compress the request body
+(`zstd`/`br`/`gzip`), `--retry` to retry failed requests with backoff,
+`--timeout`/`--no-timeout`, and `--no-follow-redirects` / `--max-redirects` to
+control redirect behavior.
 
 ## `bench` — generate load
 
