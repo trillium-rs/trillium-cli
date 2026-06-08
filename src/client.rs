@@ -10,6 +10,7 @@ use std::{
     time::Duration,
 };
 use trillium_client::{Body, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version};
+use trillium_client_retry::RetryHandler;
 use trillium_compression::{CompressionAlgorithm, client::Compression};
 use trillium_logger::client::ClientLogger;
 use trillium_redirect::client::FollowRedirects;
@@ -110,6 +111,70 @@ pub struct ClientCli {
     )]
     allow_downgrade: bool,
 
+    /// retry failed requests up to this many times (0 disables)
+    ///
+    /// retries transport errors (connection refused, reset, timeout) and the
+    /// retryable statuses 429 and 503, with exponential backoff and honoring a
+    /// server-advertised Retry-After. only idempotent methods (GET, HEAD, PUT,
+    /// DELETE, OPTIONS, TRACE) are retried unless --retry-all-methods is given.
+    ///
+    /// note: a request body streamed from stdin or --file cannot be replayed,
+    /// so such a request is never retried; use --body for a retryable body.
+    #[arg(
+        long,
+        value_name = "N",
+        default_value_t = 0,
+        verbatim_doc_comment,
+        help_heading = "Retries"
+    )]
+    retry: u32,
+
+    /// wait a fixed delay between retries instead of exponential backoff
+    ///
+    /// example: --retry-delay 500ms
+    #[arg(
+        long,
+        value_parser = humantime::parse_duration,
+        requires = "retry",
+        verbatim_doc_comment,
+        help_heading = "Retries"
+    )]
+    retry_delay: Option<Duration>,
+
+    /// total wall-clock budget across all attempts (default 30s)
+    ///
+    /// keep this at least as large as --timeout; the first attempt uses the
+    /// per-request timeout, and this budget caps every attempt after it.
+    #[arg(
+        long,
+        value_parser = humantime::parse_duration,
+        requires = "retry",
+        verbatim_doc_comment,
+        help_heading = "Retries"
+    )]
+    retry_max_time: Option<Duration>,
+
+    /// also retry non-idempotent methods such as POST and PATCH
+    ///
+    /// only safe when the endpoint is idempotent in practice or guarded by an
+    /// idempotency key, since replaying it may duplicate a side effect.
+    #[arg(
+        long,
+        requires = "retry",
+        verbatim_doc_comment,
+        help_heading = "Retries"
+    )]
+    retry_all_methods: bool,
+
+    /// log one line per request (including each retry attempt) to stderr
+    ///
+    /// the request logger is shown automatically when stdout is a terminal. when
+    /// output is piped or redirected it is suppressed so it can't corrupt the
+    /// response body; pass this to force it on, writing to stderr so stdout
+    /// stays clean. handy for watching --retry attempts in a script.
+    #[arg(long, verbatim_doc_comment)]
+    always_log: bool,
+
     /// set the log level. add more flags for more verbosity
     ///
     /// example:
@@ -190,11 +255,42 @@ impl From<RequestEncoding> for CompressionAlgorithm {
 
 impl ClientCli {
     async fn build(&self) -> Conn {
+        // On an interactive stdout the logger prints inline (its default
+        // `Target::Stdout`). When stdout is piped that would corrupt the body,
+        // so the logger is installed only when `--always-log` is given, and
+        // then aimed at stderr — `Targetable` is implemented for any
+        // `Fn(String)`, so a closure is all it takes — keeping stdout clean.
+        // `-v`/`-q` stay dedicated to internal `log` output, not this line.
+        let logger = if std::io::stdout().is_terminal() {
+            Some(ClientLogger::new())
+        } else if self.always_log {
+            Some(ClientLogger::new().with_target(|line: String| eprintln!("{line}")))
+        } else {
+            None
+        };
+
         // `Option<T>` is itself a `ClientHandler`, so a `None` here drops the
-        // follow-redirects step entirely rather than capping it at zero.
+        // corresponding step entirely rather than installing a no-op.
         let client_handler = (
+            // `--retry 0` (the default) installs no RetryHandler at all. Tuple
+            // order is not significant for the retry handler today; the only
+            // ordering interaction is with a caching handler, which this client
+            // path does not use.
+            (self.retry > 0).then(|| {
+                let mut handler = RetryHandler::default().with_max_attempts(self.retry + 1);
+                if let Some(delay) = self.retry_delay {
+                    handler = handler.with_constant_backoff(delay);
+                }
+                if let Some(max_elapsed) = self.retry_max_time {
+                    handler = handler.with_max_elapsed(max_elapsed);
+                }
+                if self.retry_all_methods {
+                    handler = handler.with_all_methods();
+                }
+                handler
+            }),
             Compression::new(),
-            std::io::stdout().is_terminal().then(ClientLogger::new),
+            logger,
             (!self.no_follow_redirects).then(|| {
                 FollowRedirects::new()
                     .with_max_redirects(self.max_redirects)
@@ -224,7 +320,19 @@ impl ClientCli {
         } else if let Some(body) = &self.body {
             conn.set_request_body(body.clone());
         } else if !std::io::stdin().is_terminal() {
-            conn.set_request_body(Body::new_streaming(Unblock::new(std::io::stdin()), None));
+            // stdin is redirected (a pipe, file, or here-string) rather than a
+            // terminal. Probe a single byte before committing to a body: an
+            // empty source (`</dev/null`, a script with no input) should send
+            // no body at all, not an empty chunked request with
+            // `Expect: 100-continue`. When there is data, stream the probed
+            // byte followed by the rest of stdin — still one-shot, so a request
+            // with a piped body is (correctly) not eligible for --retry.
+            use std::io::Read;
+            let mut probe = [0u8; 1];
+            if let Ok(n @ 1..) = std::io::stdin().read(&mut probe) {
+                let body = std::io::Cursor::new(probe[..n].to_vec()).chain(std::io::stdin());
+                conn.set_request_body(Body::new_streaming(Unblock::new(body), None));
+            }
         }
 
         if let Some(encoding) = self.compression {
@@ -251,7 +359,9 @@ impl ClientCli {
                 "\n{}",
                 format!("<body streamed from {}>", path.display()).dimmed()
             );
-        } else if !std::io::stdin().is_terminal() {
+        } else if conn.request_body().is_some() {
+            // Only when the stdin probe in `build` actually found data; an empty
+            // redirect attaches no body, so there's nothing to note here.
             println!("\n{}", "<body streamed from stdin>".dimmed());
         }
     }
