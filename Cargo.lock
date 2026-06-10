@@ -3909,9 +3909,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-router"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffc8c8bc5be53932e7aa7b42716c44c6b7839186dbdeb5b83bb5d608cb2a44e6"
+checksum = "bff65060c613764e5fef61e4d13a4a8aa37cd364a0fb6ed59c1804ec7185fbe3"
 dependencies = [
  "log",
  "routefinder",
