@@ -141,11 +141,11 @@ trillium = { version = "1.3.0", optional = true}
 trillium-native-tls = { version = "0.6.2", optional = true }
 trillium-rustls = { version = "0.11.2", optional = true }
 trillium-proxy = { version = "0.8.0", optional = true }
-trillium-router = { version = "0.5.1", optional = true }
+trillium-router = { version = "0.5.2", optional = true }
 trillium-static = { version = "0.6.1", features = [
         "smol",
 ], optional = true }
-trillium-websockets = { version = "0.8.0", features = [
+trillium-websockets = { version = "0.8.1", features = [
         "json",
 ], optional = true }
 trillium-smol = { version = "0.6.2" }
@@ -153,7 +153,7 @@ trillium-client = { version = "0.9.5", features = [
         "sonic-rs",
 ], optional = true }
 trillium-client-retry = { version = "0.0.1", optional = true }
-trillium-http = { version = "1.3.6", optional = true }
+trillium-http = { version = "1.3.7", optional = true }
 hdrhistogram = { version = "7.5.4", optional = true }
 indicatif = { version = "0.18.4", optional = true }
 humantime = { version = "2.3.0", optional = true }
@@ -211,3 +211,6 @@ lto = "fat"
 [profile.dist]
 inherits = "release"
 lto = "fat"
+
+[patch.crates-io]
+knus = { path = "../knus" }
