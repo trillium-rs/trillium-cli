@@ -3993,9 +3993,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-websockets"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb17b68fe3978322e93eada486eb4bac0ada89648def0e3a0655053dab249bd2"
+checksum = "9f0a1ea1bab46f84cbccb76b8556f298aa6016d1d6580f037348ac2f250b77b1"
 dependencies = [
  "async-tungstenite",
  "base64 0.22.1",
