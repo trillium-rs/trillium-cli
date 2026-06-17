@@ -12,6 +12,7 @@
 //! ```kdl
 //! compression true                  // optional cross-cutting defaults
 //! rate-limit "100/min" burst=200
+//! dns "1.1.1.1"                      // encrypted DNS for proxied upstreams
 //!
 //! binding ":8080" {
 //!     tls cert="./cert.pem" key="./key.pem"
@@ -46,6 +47,13 @@ pub struct Config {
     /// upstreams). A bare `cache` node enables it with defaults.
     #[knus(child)]
     pub cache: Option<CacheNode>,
+
+    /// Route the shared proxy client's DNS through an encrypted resolver
+    /// (`dns "1.1.1.1"`, `dns "tls://1.1.1.1"`, `dns "quic://1.1.1.1"`, …),
+    /// matching the `--dns` syntax of `trillium client`/`proxy`. Absent → the
+    /// system resolver. Validated at load via [`crate::dns::parse_dns`].
+    #[knus(child, unwrap(argument))]
+    pub dns: Option<String>,
 
     /// One or more listeners.
     #[knus(children(name = "binding"))]
@@ -306,7 +314,30 @@ impl Config {
         let filename = path.display().to_string();
         let config: Self = knus::parse(&filename, &text)?;
         config.validate_selectors(&filename, &text)?;
+        config.validate_dns(&filename, &text)?;
         Ok(config)
+    }
+
+    /// Validate the `dns` resolver string with the shared [`crate::dns::parse_dns`]
+    /// parser at load time, so a bad scheme or empty host fails with a `miette`
+    /// span pointing at the offending string rather than exiting once the proxy
+    /// client is built.
+    fn validate_dns(&self, filename: &str, src: &str) -> miette::Result<()> {
+        let Some(dns) = &self.dns else {
+            return Ok(());
+        };
+        if let Err(e) = crate::dns::parse_dns(dns) {
+            let labels = locate(src, dns)
+                .map(|span| vec![miette::LabeledSpan::at(span, "invalid resolver")])
+                .unwrap_or_default();
+            return Err(miette::miette!(
+                labels = labels,
+                help = "use a bare host, or an https://, h3://, tls://, or quic:// url",
+                "invalid dns resolver {dns:?}: {e}",
+            )
+            .with_source_code(miette::NamedSource::new(filename, src.to_string())));
+        }
+        Ok(())
     }
 
     /// Validate every `rewrite-html` CSS selector against `lol-html`'s parser
