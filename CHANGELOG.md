@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/trillium-rs/trillium-cli/compare/v0.7.0...v0.8.0) - 2026-06-17
+
+### Added
+
+- add dns support
+
+### Other
+
+- *(deps)* bump webpack-dev-server from 5.2.4 to 5.2.5 in /docs
+- *(deps)* update trillium-http, trillium-websockets, trillium-router
+- *(deps)* update rust crate trillium-websockets to v0.8.1
+- *(deps)* update rust crate trillium-http to v1.3.7
+- *(deps)* update rust crate trillium-router to v0.5.2
+
 ## [0.7.0](https://github.com/trillium-rs/trillium-cli/compare/v0.6.0...v0.7.0) - 2026-06-08
 
 ### Added
