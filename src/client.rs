@@ -9,7 +9,9 @@ use std::{
     path::PathBuf,
     time::Duration,
 };
-use trillium_client::{Body, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version};
+use trillium_client::{
+    Body, Client, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version,
+};
 use trillium_client_retry::RetryHandler;
 use trillium_compression::{CompressionAlgorithm, client::Compression};
 use trillium_logger::client::ClientLogger;
@@ -70,6 +72,35 @@ pub struct ClientCli {
     /// http version
     #[arg(long, verbatim_doc_comment, value_enum, default_value_t)]
     http_version: HttpVersion,
+
+    /// route DNS through an encrypted resolver instead of the system resolver
+    ///
+    /// the scheme selects the transport (following the dnsproxy convention):
+    ///
+    ///   --dns 1.1.1.1                DNS-over-HTTPS, expands to
+    ///                                https://1.1.1.1/dns-query
+    ///   --dns https://h/dns-query    DNS-over-HTTPS at an explicit url
+    ///   --dns tls://1.1.1.1          DNS-over-TLS    (needs a tls backend)
+    ///   --dns quic://1.1.1.1         DNS-over-QUIC   (needs --tls rustls + h3)
+    ///   --dns h3://1.1.1.1           DNS-over-HTTPS forced over HTTP/3
+    ///
+    /// a bare host or one given with tls://, quic:// or h3:// expands to the
+    /// transport's default port and path; pass a full url to override either.
+    ///
+    /// beyond encryption, a non-system resolver also fetches SVCB/HTTPS records
+    /// (RFC 9460), so a host that advertises alpn=h3 in DNS is reached over
+    /// HTTP/3 on the very first request — with no Alt-Svc round-trip — when the
+    /// client is http/3-capable (--tls rustls with the h3 build).
+    ///
+    /// resolution is fail-closed: once set, a lookup the resolver can't answer
+    /// fails the request rather than falling back to the system resolver, so a
+    /// query never leaks to the local resolver.
+    ///
+    /// every transport runs over tls, so this needs a tls backend — it has no
+    /// effect with --tls none.
+    #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
+    #[arg(long, value_parser = crate::dns::parse_dns, verbatim_doc_comment, help_heading = "DNS")]
+    dns: Option<crate::dns::DnsResolver>,
 
     /// skip TLS certificate verification (rustls only)
     ///
@@ -299,6 +330,7 @@ impl ClientCli {
         );
 
         let client = crate::tls::build_client(self.tls, self.insecure).with_handler(client_handler);
+        let client = self.apply_dns(client);
         let client = if self.no_timeout {
             client.without_timeout()
         } else {
@@ -340,6 +372,24 @@ impl ClientCli {
         }
 
         conn
+    }
+
+    /// Apply the `--dns` resolver (if any) to `client`, handing the selected
+    /// `--tls` to the shared [`crate::dns`] module so it can validate that the
+    /// backend can carry the chosen transport.
+    #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
+    fn apply_dns(&self, client: Client) -> Client {
+        match &self.dns {
+            Some(dns) => dns.apply(client, self.tls, "--tls"),
+            None => client,
+        }
+    }
+
+    /// In a build with no tls backend the `--dns` flag doesn't exist, so there
+    /// is nothing to apply.
+    #[cfg(not(any(feature = "rustls", feature = "native-tls", feature = "openssl")))]
+    fn apply_dns(&self, client: Client) -> Client {
+        client
     }
 
     /// Print the request line, headers, and (known) body without sending anything.

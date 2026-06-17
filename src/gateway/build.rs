@@ -40,9 +40,20 @@ const DEFAULT_CACHE_MAX_BODY: u64 = 16 * 1024 * 1024;
 /// directive across all bindings.
 pub fn build_client(config: &Config) -> Client {
     let client = Client::from(Tls::default());
-    match &config.cache {
+    let client = match &config.cache {
         None => client,
         Some(cache) => client.with_handler(build_cache(cache)),
+    };
+    match &config.dns {
+        // The string was already validated at load (`Config::validate_dns`), so
+        // parsing here can't surface a new user error. The gateway is rustls-only
+        // by construction, so the resolver's tls/h3 requirements are satisfied.
+        Some(dns) => crate::dns::parse_dns(dns)
+            .expect("dns resolver validated at load")
+            // The gateway is rustls-only, so the tls/h3 checks never fire and
+            // the flag name in their (unreachable) messages is immaterial.
+            .apply(client, Tls::default(), "--tls"),
+        None => client,
     }
 }
 

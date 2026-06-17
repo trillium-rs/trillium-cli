@@ -15,6 +15,14 @@ pub(crate) mod client;
 pub(crate) mod dev_server;
 #[cfg(any(feature = "serve", feature = "gateway"))]
 pub(crate) mod directory_listing;
+// Encrypted-DNS (`--dns`) plumbing, shared by the `client`/`proxy`/`gateway`
+// outbound clients. Every transport runs over tls, so it's only built when a
+// tls backend is present.
+#[cfg(all(
+    any(feature = "client", feature = "proxy", feature = "gateway"),
+    any(feature = "rustls", feature = "native-tls", feature = "openssl")
+))]
+pub(crate) mod dns;
 #[cfg(feature = "gateway")]
 pub(crate) mod gateway;
 #[cfg(feature = "grpc")]
