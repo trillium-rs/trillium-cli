@@ -3839,9 +3839,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-http"
-version = "1.3.7"
+version = "1.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ea31b52801847d3c20df53c1baf22186dd7bd421b2b95f4912d50a682980edb"
+checksum = "651403cdf95423549826bfd60404bf106aad6276745e412ade12371bb72484b8"
 dependencies = [
  "atomic-waker",
  "encoding_rs",
@@ -3941,9 +3941,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-quinn"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4c6dbacbd533d6666e25806e1cedb3fe1bc8f25a19c3bf11cf153c68fde9cfd"
+checksum = "448695c26130f4e3b43b5435284fe9de0164d89ccaa067b467f53eea2f33effc"
 dependencies = [
  "async-compat",
  "futures-lite 2.6.1",
@@ -4007,12 +4007,13 @@ dependencies = [
 
 [[package]]
 name = "trillium-server-common"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b416ec1c1be963d92d8912d8967cc10c680a256e74c1d76f5d2e244603bbd7b9"
+checksum = "01b0e7e973f25027e3e4b31eef0c0e79c4f6dadc932f1d80003a811810edffba"
 dependencies = [
  "async-channel",
  "async_cell",
+ "atomic-waker",
  "cfg_aliases",
  "fieldwork",
  "futures-lite 2.6.1",
