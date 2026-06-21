@@ -108,6 +108,7 @@ impl StaticCli {
         );
 
         let config = trillium_smol::config()
+            .with_nodelay()
             .with_port(self.port)
             .with_host(&self.host);
 

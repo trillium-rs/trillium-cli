@@ -20,7 +20,6 @@ use trillium_proxy::{
         UpstreamSelector,
     },
 };
-use trillium_smol::ClientConfig;
 
 #[derive(Clone, Copy, Debug, ValueEnum, Default, PartialEq, Eq)]
 enum UpstreamSelectorStrategy {
@@ -215,7 +214,7 @@ impl ProxyCli {
             trillium_caching_headers::caching_headers(),
             if self.strategy == UpstreamSelectorStrategy::Forward {
                 Some((
-                    ForwardProxyConnect::new(ClientConfig::default()),
+                    ForwardProxyConnect::new(crate::tls::client_tcp_config()),
                     |conn: Conn| async move {
                         if conn.status() == Some(Status::Ok) && conn.method() == Method::Connect {
                             conn.halt()
@@ -234,6 +233,7 @@ impl ProxyCli {
         );
 
         let config = trillium_smol::config()
+            .with_nodelay()
             .with_port(self.port)
             .with_host(&self.host);
 
