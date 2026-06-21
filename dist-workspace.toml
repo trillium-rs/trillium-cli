@@ -21,6 +21,6 @@ hosting = "github"
 install-updater = false
 # Whether dist should create a Github Release or use an existing draft
 create-release = false
-# Steps injected early into the build jobs: cmake/NASM for aws-lc-rs, and lld for
-# the arm64 macOS link step. Path is relative to .github/workflows/.
+# Steps injected early into the build jobs: cmake/NASM for aws-lc-rs.
+# Path is relative to .github/workflows/.
 github-build-setup = "../build-setup.yml"
