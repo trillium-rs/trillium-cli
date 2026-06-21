@@ -180,6 +180,7 @@ pub fn spawn_binding(
     let addr = (host.as_str(), port);
 
     let mut server = trillium_smol::config()
+        .with_nodelay()
         .with_swansong(swansong.clone())
         .without_signals();
 

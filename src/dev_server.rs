@@ -950,6 +950,7 @@ mod proxy_app {
         };
 
         trillium_smol::config()
+            .with_nodelay()
             .without_signals()
             .with_port(port)
             .with_host(&host)

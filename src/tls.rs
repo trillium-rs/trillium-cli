@@ -44,27 +44,43 @@ pub enum Tls {
     Openssl,
 }
 
+/// The base tcp connector config shared by every client this crate builds.
+///
+/// `with_nodelay(true)` disables Nagle's algorithm so small requests aren't
+/// delayed waiting to coalesce — the right default for an interactive CLI.
+pub fn client_tcp_config() -> ClientConfig {
+    ClientConfig::default().with_nodelay(true)
+}
+
 impl From<Tls> for Client {
     fn from(value: Tls) -> Self {
         match value {
-            Tls::None => Client::new(ClientConfig::default()),
+            Tls::None => Client::new(client_tcp_config()),
 
             #[cfg(all(feature = "rustls", feature = "h3"))]
             Tls::Rustls => Client::new_with_quic(
-                trillium_rustls::RustlsConfig::<ClientConfig>::default(),
+                trillium_rustls::RustlsConfig::<ClientConfig>::default()
+                    .with_tcp_config(client_tcp_config()),
                 trillium_quinn::ClientQuicConfig::with_webpki_roots(),
             ),
 
             #[cfg(all(feature = "rustls", not(feature = "h3")))]
-            Tls::Rustls => Client::new(trillium_rustls::RustlsConfig::<ClientConfig>::default()),
+            Tls::Rustls => Client::new(
+                trillium_rustls::RustlsConfig::<ClientConfig>::default()
+                    .with_tcp_config(client_tcp_config()),
+            ),
 
             #[cfg(feature = "native-tls")]
-            Tls::Native => {
-                Client::new(trillium_native_tls::NativeTlsConfig::<ClientConfig>::default())
-            }
+            Tls::Native => Client::new(
+                trillium_native_tls::NativeTlsConfig::<ClientConfig>::default()
+                    .with_tcp_config(client_tcp_config()),
+            ),
 
             #[cfg(feature = "openssl")]
-            Tls::Openssl => Client::new(trillium_openssl::OpenSslConfig::<ClientConfig>::default()),
+            Tls::Openssl => Client::new(
+                trillium_openssl::OpenSslConfig::<ClientConfig>::default()
+                    .with_tcp_config(client_tcp_config()),
+            ),
         }
     }
 }
@@ -164,14 +180,14 @@ fn insecure_rustls_client() -> Client {
         let quic =
             trillium_quinn::ClientQuicConfig::from_rustls_client_config(rustls_config.clone());
         Client::new_with_quic(
-            trillium_rustls::RustlsConfig::new(rustls_config, ClientConfig::default()),
+            trillium_rustls::RustlsConfig::new(rustls_config, client_tcp_config()),
             quic,
         )
     };
     #[cfg(not(feature = "h3"))]
     let client = Client::new(trillium_rustls::RustlsConfig::new(
         rustls_config,
-        ClientConfig::default(),
+        client_tcp_config(),
     ));
 
     client
