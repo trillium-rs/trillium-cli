@@ -2,21 +2,75 @@
 title: Installing
 ---
 
+import Install from '@site/src/components/Install';
+
 # Installing
 
+The CLI installs a single binary named `trillium`. Run `trillium --help`, or
+`trillium <command> --help`, for the full option list.
+
+## Prebuilt binaries (recommended)
+
+Every release ships prebuilt binaries for x86_64/aarch64 macOS, x86_64 Linux,
+and x86_64 Windows — no Rust toolchain and no compilation required. They're
+built with **every subcommand enabled** (including the otherwise-opt-in
+`gateway`, `grpc`, and, on macOS/Linux, `dev-server`), so the full toolkit is
+available out of the box.
+
+<Install />
+
+The methods below spell out each option; the picker above just jumps to the one
+for your platform.
+
+### cargo-binstall
+
+If you have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), it
+reads the release metadata and downloads the right binary for your platform:
+
+```sh
+cargo binstall trillium-cli
+```
+
+### Installer scripts
+
+The installer scripts detect your platform, download the matching archive, and
+place the binary in `~/.cargo/bin`.
+
+**macOS and Linux:**
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/trillium-rs/trillium-cli/releases/latest/download/trillium-cli-installer.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+powershell -c "irm https://github.com/trillium-rs/trillium-cli/releases/latest/download/trillium-cli-installer.ps1 | iex"
+```
+
+Both always install the most recent release.
+
+### Download the archive directly
+
+Prefer to fetch and unpack the archive yourself, or pin a specific version? Grab
+the platform archive (`.tar.xz` on macOS/Linux, `.zip` on Windows) from the
+[releases page](https://github.com/trillium-rs/trillium-cli/releases), verify it
+against the published `sha256.sum`, and put the `trillium` binary somewhere on
+your `PATH`.
+
 ## From crates.io
+
+To compile from source with cargo:
 
 ```sh
 cargo install trillium-cli
 ```
 
-This installs a single binary named `trillium`. Run `trillium --help`, or
-`trillium <command> --help`, for the full option list.
-
-The default build includes the `serve`, `proxy`, `client`, and `bench`
-subcommands, with the `rustls` TLS backend and HTTP/3 (`h3`). To build a smaller
-binary, or to include a non-default subcommand like `gateway`, select
-[features](#feature-flags) explicitly:
+A default `cargo install` includes the `serve`, `proxy`, `client`, and `bench`
+subcommands, with the `rustls` TLS backend and HTTP/3 (`h3`) — the non-default
+`gateway`, `grpc`, and `dev-server` subcommands are off (the prebuilt binaries
+above bundle them all). To build a smaller binary, or to add a non-default
+subcommand, select [features](#feature-flags) explicitly:
 
 ```sh
 # just the client, built against the system's native TLS
