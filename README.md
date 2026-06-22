@@ -23,13 +23,58 @@ ALPN; `--http-version` selects the protocol (HTTP/1.0 through HTTP/3) for
 
 ## Install
 
+The binary is named `trillium`. Run `trillium --help`, or
+`trillium <command> --help`, for the full option list — the examples below
+cover the common cases.
+
+### Prebuilt binaries (recommended)
+
+Each release ships prebuilt binaries for x86_64/aarch64 macOS, x86_64 Linux,
+and x86_64 Windows — no Rust toolchain, no compile. They're built with **every
+subcommand enabled** (`gateway`, `grpc`, and, on macOS/Linux, `dev-server`), so
+you get the full toolkit out of the box.
+
+If you have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), it
+reads the release metadata and fetches the right binary for your platform:
+
+```sh
+cargo binstall trillium-cli
+```
+
+Otherwise, the installer scripts detect your platform, download the matching
+archive, and place the binary in `~/.cargo/bin`:
+
+**macOS and Linux:**
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/trillium-rs/trillium-cli/releases/latest/download/trillium-cli-installer.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+powershell -c "irm https://github.com/trillium-rs/trillium-cli/releases/latest/download/trillium-cli-installer.ps1 | iex"
+```
+
+Both always install the most recent release. You can also pin a specific version
+or download the archives directly from the
+[releases page](https://github.com/trillium-rs/trillium-cli/releases).
+
+### From crates.io
+
+To compile from source with cargo:
+
 ```sh
 cargo install trillium-cli
 ```
 
-This installs a binary named `trillium`. Run `trillium --help`, or
-`trillium <command> --help`, for the full option list — the examples below
-cover the common cases.
+A default `cargo install` builds only `serve`, `proxy`, `client`, and `bench`
+(the prebuilt binaries above bundle the rest). Select
+[features](#building-from-source--feature-flags) to add the others:
+
+```sh
+cargo install trillium-cli --features gateway,grpc,dev-server
+```
 
 Most listening options also read from environment variables (`HOST`, `PORT`,
 `CERT`, `KEY`, `FORWARD`, `UPSTREAM`), so they compose well with `.env` files
@@ -299,8 +344,9 @@ common knobs.
 
 ## `dev-server` — live-reload for trillium apps
 
-A watch / rebuild / restart loop with browser live-reload. It's feature-gated
-and Unix-only, so install it explicitly:
+A watch / rebuild / restart loop with browser live-reload. It's Unix-only. The
+[prebuilt macOS/Linux binaries](#prebuilt-binaries-recommended) already include
+it; with `cargo install` it's feature-gated, so enable it explicitly:
 
 ```sh
 cargo install trillium-cli --features dev-server

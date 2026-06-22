@@ -28,6 +28,19 @@ via ALPN; `--http-version` selects the protocol (HTTP/1.0 through HTTP/3) for
 
 ## Install
 
+The quickest path is a prebuilt binary — every release ships them for macOS,
+Linux, and Windows, with every subcommand already enabled:
+
+```sh
+# with cargo-binstall:
+cargo binstall trillium-cli
+
+# or the platform installer (macOS/Linux):
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/trillium-rs/trillium-cli/releases/latest/download/trillium-cli-installer.sh | sh
+```
+
+Or compile from source with cargo:
+
 ```sh
 cargo install trillium-cli
 ```
@@ -37,10 +50,11 @@ This installs a binary named `trillium`. Run `trillium --help`, or
 cover the common cases and call out the surface that isn't immediately obvious
 from `--help`.
 
-Each subcommand is gated behind a Cargo feature, and the TLS backend is
-selectable, so you can build a smaller binary with only what you need (and the
-non-default `gateway`, `dev-server`, and `grpc` subcommands are opt-in). See
-[Installing](./installing) for the feature matrix and building from source.
+With `cargo install`, each subcommand is gated behind a Cargo feature and the
+TLS backend is selectable, so you can build a smaller binary with only what you
+need (and the non-default `gateway`, `dev-server`, and `grpc` subcommands are
+opt-in). See [Installing](./installing) for the prebuilt-binary details, the
+feature matrix, and building from source.
 
 ## Environment variables
 
