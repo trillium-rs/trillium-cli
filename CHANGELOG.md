@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/trillium-rs/trillium-cli/compare/v0.8.0...v0.9.0) - 2026-06-22
+
+### Added
+
+- nodelay on
+
+### Other
+
+- *(deps)* update deps
+- update lukka/get-cmake
+- *(deps)* upgrade knus, no extra linker required
+- revert updates to release.yml
+- *(deps)* update rust crate knus to v3.4.0
+- *(deps)* update actions/checkout action to v7
+
 ## [0.8.0](https://github.com/trillium-rs/trillium-cli/compare/v0.7.0...v0.8.0) - 2026-06-17
 
 ### Added
