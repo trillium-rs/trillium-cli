@@ -3,6 +3,8 @@ title: Welcome
 slug: /
 ---
 
+import Install from '@site/src/components/Install';
+
 # trillium-cli
 
 A single `trillium` binary that bundles the most useful pieces of the
@@ -31,13 +33,7 @@ via ALPN; `--http-version` selects the protocol (HTTP/1.0 through HTTP/3) for
 The quickest path is a prebuilt binary — every release ships them for macOS,
 Linux, and Windows, with every subcommand already enabled:
 
-```sh
-# with cargo-binstall:
-cargo binstall trillium-cli
-
-# or the platform installer (macOS/Linux):
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/trillium-rs/trillium-cli/releases/latest/download/trillium-cli-installer.sh | sh
-```
+<Install />
 
 Or compile from source with cargo:
 
