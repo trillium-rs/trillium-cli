@@ -3862,9 +3862,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-http"
-version = "1.3.8"
+version = "1.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "651403cdf95423549826bfd60404bf106aad6276745e412ade12371bb72484b8"
+checksum = "ae31d93768be335aa386f78b8e7066aa6a6f3b8a0a073dbc30065255fb45e3a1"
 dependencies = [
  "atomic-waker",
  "encoding_rs",
@@ -4103,9 +4103,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-websockets"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f0a1ea1bab46f84cbccb76b8556f298aa6016d1d6580f037348ac2f250b77b1"
+checksum = "55ffc78e3a0f4e1ce28c1828be1920f19d98515e5cd4ab58b4c74cc02ce923f5"
 dependencies = [
  "async-tungstenite",
  "base64 0.22.1",
