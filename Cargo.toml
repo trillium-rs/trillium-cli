@@ -149,7 +149,7 @@ trillium-static = { version = "0.6.1", features = [
 trillium-websockets = { version = "0.8.2", features = [
         "json",
 ], optional = true }
-trillium-smol = { version = "0.6.3" }
+trillium-smol = { version = "0.7.0" }
 trillium-client = { version = "0.9.6", features = [
         "sonic-rs", "hickory"
 ], optional = true }
