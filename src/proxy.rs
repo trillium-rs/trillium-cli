@@ -4,7 +4,7 @@ use crate::{
     tls::{Tls, parse_url},
 };
 use clap::{Parser, ValueEnum};
-use std::{fmt::Debug, time::Duration};
+use std::{fmt::Debug, path::PathBuf, time::Duration};
 use trillium::{Conn, Method, Status};
 use trillium_cache::{InMemoryStorage, client::Cache};
 use trillium_client::Client;
@@ -89,6 +89,31 @@ pub struct ProxyCli {
     #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
     #[arg(long, value_parser = crate::dns::parse_dns, verbatim_doc_comment, help_heading = "DNS")]
     dns: Option<crate::dns::DnsResolver>,
+
+    /// proxy upstream requests over this unix domain socket instead of tcp
+    ///
+    /// every upstream connection dials the socket at this path; the upstream url
+    /// still supplies the request metadata (scheme, path, and `Host`), so pass a
+    /// single upstream url for the socket's virtual host, e.g.
+    ///
+    /// trillium proxy http://app.local --unix-socket /run/app.sock
+    ///
+    /// combine with --client-tls to speak https over the socket.
+    #[cfg(unix)]
+    #[cfg_attr(
+        any(feature = "rustls", feature = "native-tls", feature = "openssl"),
+        arg(
+            long,
+            value_name = "PATH",
+            conflicts_with = "dns",
+            verbatim_doc_comment
+        )
+    )]
+    #[cfg_attr(
+        not(any(feature = "rustls", feature = "native-tls", feature = "openssl")),
+        arg(long, value_name = "PATH", verbatim_doc_comment)
+    )]
+    unix_socket: Option<PathBuf>,
 
     /// disable response compression (gzip/brotli/zstd)
     #[arg(long)]
@@ -200,10 +225,18 @@ impl ProxyCli {
                 .shared()
         });
 
-        let client = crate::tls::build_client(self.client_tls, self.insecure).with_handler((
-            ClientLogger::new().with_formatter(("-> ", client_dev_formatter)),
-            cache,
-        ));
+        #[cfg(unix)]
+        let unix_socket = self.unix_socket.clone();
+        #[cfg(not(unix))]
+        let unix_socket: Option<PathBuf> = None;
+
+        let client = crate::tls::build_client(self.client_tls, self.insecure, unix_socket)
+            .with_handler((
+                ClientLogger::new().with_formatter(("-> ", client_dev_formatter)),
+                cache,
+            ));
+        // `--dns` and `--unix-socket` are mutually exclusive (a fixed socket
+        // never resolves a host), so this is a no-op whenever a socket is set.
         let client = self.apply_dns(client);
 
         let server = (

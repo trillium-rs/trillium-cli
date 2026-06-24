@@ -102,6 +102,31 @@ pub struct ClientCli {
     #[arg(long, value_parser = crate::dns::parse_dns, verbatim_doc_comment, help_heading = "DNS")]
     dns: Option<crate::dns::DnsResolver>,
 
+    /// dial this unix domain socket instead of opening a tcp connection
+    ///
+    /// the request url still supplies the request metadata — its path, query,
+    /// and `Host` header — but its host and port no longer pick a connection
+    /// address; the socket at this path is the address. combine with --tls to
+    /// speak https over the socket.
+    ///
+    /// note: --http-version 3 runs HTTP/3 over QUIC, a UDP transport with no
+    /// unix-socket equivalent, so it can't be used over a socket.
+    #[cfg(unix)]
+    #[cfg_attr(
+        any(feature = "rustls", feature = "native-tls", feature = "openssl"),
+        arg(
+            long,
+            value_name = "PATH",
+            conflicts_with = "dns",
+            verbatim_doc_comment
+        )
+    )]
+    #[cfg_attr(
+        not(any(feature = "rustls", feature = "native-tls", feature = "openssl")),
+        arg(long, value_name = "PATH", verbatim_doc_comment)
+    )]
+    unix_socket: Option<PathBuf>,
+
     /// skip TLS certificate verification (rustls only)
     ///
     /// dangerous: this disables authentication of the server. use only against
@@ -329,7 +354,15 @@ impl ClientCli {
             }),
         );
 
-        let client = crate::tls::build_client(self.tls, self.insecure).with_handler(client_handler);
+        #[cfg(unix)]
+        let unix_socket = self.unix_socket.clone();
+        #[cfg(not(unix))]
+        let unix_socket: Option<PathBuf> = None;
+
+        let client = crate::tls::build_client(self.tls, self.insecure, unix_socket)
+            .with_handler(client_handler);
+        // `--dns` and `--unix-socket` are mutually exclusive (a fixed socket
+        // never resolves a host), so this is a no-op whenever a socket is set.
         let client = self.apply_dns(client);
         let client = if self.no_timeout {
             client.without_timeout()

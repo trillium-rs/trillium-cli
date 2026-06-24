@@ -150,7 +150,7 @@ trillium-websockets = { version = "0.8.2", features = [
         "json",
 ], optional = true }
 trillium-smol = { version = "0.7.0" }
-trillium-client = { version = "0.9.6", features = [
+trillium-client = { version = "0.9.7", features = [
         "sonic-rs", "hickory"
 ], optional = true }
 trillium-client-retry = { version = "0.0.1", optional = true }
@@ -159,7 +159,7 @@ trillium-logger = { version = "0.5.4", optional = true }
 trillium-html-rewriter = { version = "0.6", optional = true }
 trillium-quinn = { version = "0.1.6", optional = true, features = ["webpki-roots"] }
 trillium-openssl = { version = "0.2", optional = true }
-trillium-server-common = "0.7.6"
+trillium-server-common = "0.7.7"
 trillium-grpc-codegen = { version = "0.3", optional = true }
 trillium-cache = { version = "0.1", optional = true }
 trillium-redirect = { version = "0.3", optional = true, features = ["client"] }
