@@ -1,3 +1,5 @@
+#[cfg(any(feature = "client", feature = "proxy"))]
+use std::path::PathBuf;
 #[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 use std::sync::Arc;
 use trillium_client::{Client, Url};
@@ -90,8 +92,21 @@ impl From<Tls> for Client {
 ///
 /// `insecure` is only honored for the `rustls` backend; with any other backend it logs a
 /// warning and falls back to verified connections.
+///
+/// `unix_socket`, when set, dials that Unix domain socket for every request
+/// instead of opening a tcp connection — the request url then only supplies
+/// request metadata (path, query, `Host`), not the connection address.
 #[cfg(any(feature = "client", feature = "proxy"))]
-pub fn build_client(tls: Tls, insecure: bool) -> Client {
+pub fn build_client(tls: Tls, insecure: bool, unix_socket: Option<PathBuf>) -> Client {
+    #[cfg(unix)]
+    if let Some(path) = unix_socket {
+        return build_unix_client(tls, insecure, path);
+    }
+    // On non-unix targets there is no Unix-socket connector, so the option is
+    // always `None`; bind it so the parameter isn't flagged as unused.
+    #[cfg(not(unix))]
+    let _ = unix_socket;
+
     if !insecure {
         return Client::from(tls);
     }
@@ -103,6 +118,60 @@ pub fn build_client(tls: Tls, insecure: bool) -> Client {
 
     log::warn!("--insecure is only supported with --tls rustls; verifying certificates");
     Client::from(tls)
+}
+
+/// Build a [`Client`] that dials a fixed Unix domain socket instead of tcp,
+/// composing the requested tls backend over the socket exactly as the tcp path
+/// does.
+///
+/// QUIC/h3 is a UDP transport and has no Unix-socket equivalent (the connector's
+/// `Udp` type is `()`), so the rustls arm here never wires up quic — `--tls
+/// rustls` over a socket is tcp-style https only.
+#[cfg(all(unix, any(feature = "client", feature = "proxy")))]
+// With no tls backend the only arm is `Tls::None`, which ignores `insecure`.
+#[cfg_attr(
+    not(any(feature = "rustls", feature = "native-tls", feature = "openssl")),
+    allow(unused_variables)
+)]
+fn build_unix_client(tls: Tls, insecure: bool, path: PathBuf) -> Client {
+    let inner = trillium_smol::UnixClientConfig::new(path);
+
+    match tls {
+        Tls::None => Client::new(inner),
+
+        #[cfg(feature = "rustls")]
+        Tls::Rustls => {
+            // `--insecure` swaps in the accept-any verifier; otherwise reuse the
+            // default rustls client config the tcp path would build.
+            let rustls_config: trillium_rustls::RustlsClientConfig = if insecure {
+                insecure_rustls_config().into()
+            } else {
+                trillium_rustls::RustlsConfig::<ClientConfig>::default().rustls_config
+            };
+            Client::new(trillium_rustls::RustlsConfig::new(rustls_config, inner))
+        }
+
+        #[cfg(feature = "native-tls")]
+        Tls::Native => {
+            if insecure {
+                log::warn!(
+                    "--insecure is only supported with --tls rustls; verifying certificates"
+                );
+            }
+            Client::new(trillium_native_tls::NativeTlsConfig::from(inner))
+        }
+
+        #[cfg(feature = "openssl")]
+        Tls::Openssl => {
+            if insecure {
+                log::warn!(
+                    "--insecure is only supported with --tls rustls; verifying certificates"
+                );
+            }
+            let ssl_config = trillium_openssl::OpenSslConfig::<ClientConfig>::default().ssl_config;
+            Client::new(trillium_openssl::OpenSslConfig::new(ssl_config, inner))
+        }
+    }
 }
 
 /// A rustls [`ServerCertVerifier`] that accepts any certificate. Deliberately not easy to reach
