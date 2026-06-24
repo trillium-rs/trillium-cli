@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1](https://github.com/trillium-rs/trillium-cli/compare/v0.9.0...v0.9.1) - 2026-06-24
+
+### Other
+
+- *(deps)* update rust crate trillium-client to v0.9.7
+- *(deps)* update actions/cache action to v6
+- add install component to welcome.md
+- update installation instructions
+
 ## [0.9.0](https://github.com/trillium-rs/trillium-cli/compare/v0.8.0...v0.9.0) - 2026-06-22
 
 ### Added
