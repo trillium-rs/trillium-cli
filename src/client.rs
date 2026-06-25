@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 use trillium_client::{
-    Body, Client, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version,
+    Body, Client, Conn, Error, Headers, KnownHeaderName, Method, Status, Url, Version, sse::Event,
 };
 use trillium_client_retry::RetryHandler;
 use trillium_compression::{CompressionAlgorithm, client::Compression};
@@ -40,6 +40,19 @@ pub struct ClientCli {
     /// write the body to a file
     #[arg(short, long, verbatim_doc_comment)]
     output_file: Option<Option<PathBuf>>,
+
+    /// read the response as a Server-Sent Events stream
+    ///
+    /// sets `Accept: text/event-stream` and consumes the response body as an
+    /// SSE stream, printing each event as it arrives rather than buffering a
+    /// single body. the stream stays open until the server closes it.
+    ///
+    /// to an interactive terminal each event is rendered with colored field
+    /// labels (event type, id, retry) and JSON payloads are pretty-printed.
+    /// when piped, events are emitted as newline-delimited JSON — one object
+    /// per line — so the stream pipes cleanly into `jq` and friends.
+    #[arg(long, verbatim_doc_comment, conflicts_with = "output_file")]
+    sse: bool,
 
     /// provide a request body on the command line
     ///
@@ -374,6 +387,21 @@ impl ClientCli {
 
         conn.request_headers_mut().extend(self.headers.clone());
 
+        // Advertise the event-stream content negotiation up front so it shows in
+        // `--dry-run` and reaches content-negotiating servers. The client seeds
+        // every conn with `Accept: */*`, so this must be a replacing `insert`
+        // rather than `try_insert` — but only when the user hasn't pinned their
+        // own `Accept`, in which case theirs stands.
+        if self.sse
+            && !self
+                .headers
+                .iter()
+                .any(|(k, _)| k.eq_ignore_ascii_case("accept"))
+        {
+            conn.request_headers_mut()
+                .insert(KnownHeaderName::Accept, "text/event-stream");
+        }
+
         if let Some(path) = &self.file {
             let file = async_fs::File::open(path)
                 .await
@@ -541,6 +569,14 @@ impl ClientCli {
                 return;
             }
 
+            if self.sse {
+                // `into_sse` consumes the conn to execute the request itself, so
+                // this path never awaits `conn` first — it streams events until
+                // the server closes the connection.
+                stream_sse(conn).await;
+                return;
+            }
+
             if let Err(e) = (&mut conn).await {
                 match e {
                     Error::Io(io) if io.kind() == ErrorKind::ConnectionRefused => {
@@ -613,6 +649,104 @@ impl ClientCli {
             }
         });
     }
+}
+
+/// Open an SSE stream on `conn` and print each event until the server closes
+/// the connection. Renders for an interactive terminal with colored field
+/// decorators, otherwise emits newline-delimited JSON for piping.
+async fn stream_sse(conn: Conn) {
+    use futures_lite::StreamExt;
+    use std::io::Write;
+
+    let interactive = std::io::stdout().is_terminal();
+
+    let mut stream = match conn.into_sse().await {
+        Ok(stream) => stream,
+        // `SseError` derefs to the `Conn`, but its `Display` already names the
+        // failure (e.g. a non-2xx status or a non-event-stream content-type).
+        Err(e) => {
+            log::error!("could not open event stream: {e}");
+            return;
+        }
+    };
+
+    // Write each rendered event through one fallible point and flush it
+    // immediately so a live feed reaches the terminal (or the next process in a
+    // pipe) without waiting on a buffer. A closed downstream — `… --sse | head`
+    // — surfaces as `BrokenPipe`; that's a clean stop, not an error to shout.
+    let stdout = std::io::stdout();
+    while let Some(item) = stream.next().await {
+        let rendered = match item {
+            Ok(event) if interactive => render_sse_event(&event),
+            Ok(event) => render_sse_event_ndjson(&event),
+            // An error item is a transport failure; the stream ends after it.
+            Err(e) => {
+                log::error!("event stream error: {e}");
+                return;
+            }
+        };
+
+        let mut handle = stdout.lock();
+        if let Err(e) = handle
+            .write_all(rendered.as_bytes())
+            .and_then(|()| handle.flush())
+        {
+            if e.kind() != ErrorKind::BrokenPipe {
+                log::error!("error writing event: {e}");
+            }
+            return;
+        }
+    }
+}
+
+/// Render one event for an interactive terminal: a header line carrying the
+/// event type and any `id`/`retry` decorators, then the payload (JSON payloads
+/// are colorized), followed by a blank separator line.
+fn render_sse_event(event: &Event) -> String {
+    let mut out = format!(
+        "{} {}",
+        "event".italic().bright_blue(),
+        event.event_type().unwrap_or("message").bold()
+    );
+    if let Some(id) = event.id() {
+        out.push_str(&format!("  {} {}", "id".italic().bright_blue(), id));
+    }
+    if let Some(retry) = event.retry() {
+        out.push_str(&format!(
+            "  {} {}",
+            "retry".italic().bright_blue(),
+            humantime::format_duration(retry).to_string().dimmed()
+        ));
+    }
+    out.push('\n');
+
+    let data = event.data();
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+        out.push_str(&colored_json::to_colored_json_auto(&json).unwrap());
+        out.push('\n');
+    } else if !data.is_empty() {
+        out.push_str(data);
+        out.push('\n');
+    }
+    out.push('\n');
+    out
+}
+
+/// Render one event as a single line of JSON (`data` kept verbatim as a
+/// string), so a piped stream reads cleanly into `jq` and friends.
+fn render_sse_event_ndjson(event: &Event) -> String {
+    let mut obj = serde_json::Map::new();
+    if let Some(event_type) = event.event_type() {
+        obj.insert("event".into(), event_type.into());
+    }
+    if let Some(id) = event.id() {
+        obj.insert("id".into(), id.into());
+    }
+    if let Some(retry) = event.retry() {
+        obj.insert("retry_ms".into(), (retry.as_millis() as u64).into());
+    }
+    obj.insert("data".into(), event.data().into());
+    format!("{}\n", serde_json::Value::Object(obj))
 }
 
 fn print_headers(headers: &Headers) {

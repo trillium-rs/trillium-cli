@@ -103,6 +103,36 @@ trillium client get https://example.com/report.pdf -o          # → ./report.pd
 trillium client get https://example.com/report.pdf -o out.pdf  # → ./out.pdf
 ```
 
+## Server-Sent Events
+
+`--sse` reads the response as a [Server-Sent Events][spec] stream. It sends
+`Accept: text/event-stream`, then prints each event as it arrives instead of
+buffering a single body, staying open until the server closes the connection:
+
+```sh
+trillium client get https://example.com/events --sse
+```
+
+The output adapts to where it's going, the same way the rest of `client` does:
+
+- **At a terminal**, each event is rendered with colored field labels — its
+  event type, and the `id` and `retry` decorators when present — and a JSON
+  `data` payload is pretty-printed with syntax coloring.
+- **Piped or redirected**, events are emitted as newline-delimited JSON, one
+  object per line (`{event?, id?, retry_ms?, data}`, with `data` kept verbatim),
+  so the stream composes with `jq` and friends:
+
+```sh
+trillium client get https://example.com/events --sse | jq .data
+```
+
+The per-request `--timeout` only bounds opening the stream (receiving the
+response head), not the events that follow, so a long-lived feed isn't cut off
+at the default 10s. The stream does **not** auto-reconnect; pair it with
+`--retry` to retry a stream that never opens.
+
+[spec]: https://html.spec.whatwg.org/multipage/server-sent-events.html
+
 ## Redirects
 
 Redirects are followed automatically (up to 10 hops). HTTPS→HTTP downgrades are
@@ -193,6 +223,7 @@ Options:
   -b, --body <BODY>
   -f, --file <FILE>
   -o, --output-file [<OUTPUT_FILE>]
+      --sse                        stream the response as Server-Sent Events
   -H, --headers <HEADERS>          KEY=VALUE, repeatable
   -c, --compression <COMPRESSION>  compress the request body: zstd, br, gzip
   -t, --tls <TLS>                  [default: rustls]
