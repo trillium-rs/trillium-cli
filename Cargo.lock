@@ -3862,9 +3862,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-http"
-version = "1.3.9"
+version = "1.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae31d93768be335aa386f78b8e7066aa6a6f3b8a0a073dbc30065255fb45e3a1"
+checksum = "84c6de92944bcc6f4c19ffa329d9f20ad81bc2f93a2008871e1facd3219ae78a"
 dependencies = [
  "atomic-waker",
  "encoding_rs",
