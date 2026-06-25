@@ -151,7 +151,7 @@ trillium-websockets = { version = "0.8.2", features = [
 ], optional = true }
 trillium-smol = { version = "0.7.0" }
 trillium-client = { version = "0.9.7", features = [
-        "sonic-rs", "hickory"
+        "sonic-rs", "hickory", "sse"
 ], optional = true }
 trillium-client-retry = { version = "0.0.1", optional = true }
 trillium-http = { version = "1.3.10", optional = true }

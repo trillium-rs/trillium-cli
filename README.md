@@ -316,6 +316,15 @@ trillium client post https://httpbin.org/anything -f ./body.json
 cat ./body.json | trillium client post https://httpbin.org/anything
 ```
 
+Stream a Server-Sent Events endpoint with `--sse`. At a terminal each event is
+rendered with colored field labels (event type, id, retry) and JSON payloads
+are pretty-printed; piped, events become newline-delimited JSON for `jq`:
+
+```sh
+trillium client get https://example.com/events --sse
+trillium client get https://example.com/events --sse | jq .data
+```
+
 Other handy flags: `--output-file` to save the body, `--dry-run` to print the
 request without sending it, `-c`/`--compression` to compress the request body
 (`zstd`/`br`/`gzip`), `--retry` to retry failed requests with backoff,
