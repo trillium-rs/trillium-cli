@@ -375,11 +375,13 @@ your app on a private port behind the proxy, passing it through as `PORT`. Use
 
 In a workspace it watches the crate it builds **plus the workspace-local crates
 it depends on**, so editing a path-dependency library reloads the app using it.
-Select what to build with cargo's own flags after a `--`:
+Select what to build with cargo's own flags via `--build-args`, and pass any
+runtime arguments your binary needs (a subcommand, a flag) with `--run-args`:
 
 ```sh
-trillium dev-server -- -p my-app --features dev
+trillium dev-server --build-args "-p my-app --features dev"
 trillium dev-server --example hello-world
+trillium dev-server --build-args "-p my-app" --run-args serve
 ```
 
 When a build fails, the errors render as an overlay in the browser (the previous
