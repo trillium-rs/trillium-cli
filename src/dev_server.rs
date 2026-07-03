@@ -9,7 +9,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use signal_hook::{consts::signal::SIGHUP, iterator::Signals};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     env,
     fmt::Display,
     io::{self, Write},
@@ -18,11 +18,57 @@ use std::{
     process::{Child, Command, Stdio},
     sync::{
         Arc, Mutex,
+        atomic::{AtomicU16, Ordering},
         mpsc::{self, RecvTimeoutError},
     },
     thread,
     time::{Duration, Instant},
 };
+use trillium::Conn;
+use trillium_proxy::upstream::UpstreamSelector;
+use url::Url;
+
+/// The upstream the proxy forwards to, with a port that's updated on each
+/// (re)spawn so we can rotate ports between rebuilds without dropping the old
+/// child's in-flight connections. A port of `0` is the "no app yet" sentinel:
+/// the app hasn't come up for the first time, so there's nothing to proxy to
+/// and the readiness gate serves a "starting up" page instead.
+#[derive(Debug, Clone)]
+struct DynamicUpstream {
+    host: String,
+    port: Arc<AtomicU16>,
+}
+
+impl DynamicUpstream {
+    fn new(host: String) -> Self {
+        Self {
+            host,
+            port: Arc::new(AtomicU16::new(0)),
+        }
+    }
+
+    fn set_port(&self, port: u16) {
+        self.port.store(port, Ordering::Relaxed);
+    }
+
+    /// Whether the app has come up at least once and can be proxied to. Until
+    /// then (port 0) there's no upstream and we serve the "starting up" page.
+    fn is_ready(&self) -> bool {
+        self.port.load(Ordering::Relaxed) != 0
+    }
+}
+
+impl UpstreamSelector for DynamicUpstream {
+    fn determine_upstream(&self, _conn: &mut Conn) -> Option<Url> {
+        let port = self.port.load(Ordering::Relaxed);
+        // `None` here makes the proxy 502; the readiness gate ahead of it should
+        // have already served the "starting up" page, so this is just a guard.
+        if port == 0 {
+            return None;
+        }
+        format!("http://{}:{port}", self.host).parse().ok()
+    }
+}
 
 #[derive(Parser, Debug)]
 pub struct DevServer {
@@ -90,16 +136,29 @@ pub struct DevServer {
     #[command(flatten)]
     verbose: Verbosity<InfoLevel>,
 
-    /// Extra arguments forwarded to `cargo build`, after a `--`
+    /// Arguments for `cargo build`, to select what gets built
     ///
-    /// Use this to select what gets built — cargo resolves the binary, so the
-    /// dev server runs whatever it produces.
+    /// A single shell-quoted string, split like a shell would (repeatable; each
+    /// occurrence is appended). Cargo resolves the binary, so the dev server
+    /// runs whatever it produces.
     ///
     /// Examples:
-    ///    `trillium dev-server -- -p my-crate`
-    ///    `trillium dev-server -- --bin worker --features dev`
-    #[arg(last = true, verbatim_doc_comment)]
-    cargo_args: Vec<String>,
+    ///    `--build-args "-p my-crate"`
+    ///    `--build-args "--bin worker --features dev"`
+    #[arg(long, verbatim_doc_comment, allow_hyphen_values = true)]
+    build_args: Vec<String>,
+
+    /// Arguments passed to your app every time it starts
+    ///
+    /// A single shell-quoted string, split like a shell would (repeatable). Use
+    /// this when your binary needs a subcommand or runtime flags before it does
+    /// its thing — e.g. an app whose first argument selects `serve`.
+    ///
+    /// Examples:
+    ///    `--run-args serve`
+    ///    `--run-args "serve --verbose"`
+    #[arg(long, verbatim_doc_comment, allow_hyphen_values = true)]
+    run_args: Vec<String>,
 }
 
 /// Events broadcast to connected browsers over the dev-server websocket.
@@ -226,9 +285,15 @@ impl DevServer {
             .canonicalize()
             .unwrap_or_else(|e| die(format!("{}: {e}", cwd.display())));
 
+        // `--build-args`/`--run-args` each take a shell-quoted string; split them
+        // the way a shell would so quoting works as written. Build args select
+        // what cargo compiles; run args are handed to the app on every start.
+        let build_args = shell_split("--build-args", &self.build_args);
+        let app_args = shell_split("--run-args", &self.run_args);
+
         // The dev server adopts the user's public HOST/PORT; the app is moved
-        // onto a private port (auto-allocated unless --app-port pins it).
-        let upstream_port = self.app_port.unwrap_or_else(free_port);
+        // onto a private port, chosen per-spawn (a fresh one each rebuild unless
+        // --app-port pins it), so nothing is allocated up front here.
 
         // Build command (reused for every rebuild). We ask cargo for JSON so it
         // tells us exactly which binary it produced and gives us structured
@@ -236,24 +301,29 @@ impl DevServer {
         let mut build = Command::new("cargo");
         build
             .current_dir(&cwd)
-            .args(["build", "--message-format=json-diagnostic-rendered-ansi"]);
+            .args(["build", "--message-format=json-diagnostic-rendered-ansi"])
+            // Let cargo's human-readable side — `Compiling …`, the progress bar,
+            // the `Finished`/error summary — stream straight to our terminal, so a
+            // slow rebuild visibly *does* something instead of hanging silently.
+            // stdout stays piped: it's the JSON we parse for diagnostics and the
+            // produced binary, not something to show a human.
+            .stderr(Stdio::inherit());
         if self.release {
             build.arg("--release");
         }
         if let Some(example) = &self.example {
             build.args(["--example", example]);
         }
-        build.args(&self.cargo_args);
+        build.args(&build_args);
         if !self.no_fast && !self.release {
             apply_fast_build(&mut build);
         }
 
         // Watch scope is small by default: the src of the crate cargo will
         // build (resolved from `-p`/the workspace), plus anything the user adds.
-        let watches =
-            resolve_watch_dirs(&cwd, &self.cargo_args, self.example.is_some(), &self.watch);
+        let watches = resolve_watch_dirs(&cwd, &build_args, self.example.is_some(), &self.watch);
 
-        print_banner(&self, upstream_port, &watches);
+        print_banner(&self, &watches);
 
         let (tx, rx) = mpsc::channel::<()>();
         let (mut broadcast_tx, broadcast_rx) = async_broadcast::broadcast::<Event>(16);
@@ -290,6 +360,10 @@ impl DevServer {
         let open_targets = Arc::new(Mutex::new(Vec::new()));
         let status = Arc::new(Mutex::new(None));
 
+        // Create a shared upstream selector that can be updated on each rebuild.
+        // It starts "not ready" (port 0) until the first spawn comes up.
+        let upstream = DynamicUpstream::new(self.app_host.clone());
+
         // Supervisor: owns the child process, builds, and restarts.
         {
             let broadcaster = broadcast_tx.clone();
@@ -297,6 +371,8 @@ impl DevServer {
             let signal = self.signal;
             let open_targets = open_targets.clone();
             let status = status.clone();
+            let pinned_port = self.app_port;
+            let upstream = upstream.clone();
             thread::spawn(move || {
                 Supervisor {
                     rx,
@@ -305,7 +381,9 @@ impl DevServer {
                     cwd,
                     signal,
                     app_host,
-                    upstream_port,
+                    pinned_port,
+                    upstream,
+                    app_args,
                     exe: None,
                     child: None,
                     open_targets,
@@ -316,7 +394,6 @@ impl DevServer {
         }
 
         let editor = self.editor.clone().or_else(|| env::var("VISUAL").ok());
-        let upstream = format!("http://{}:{}", self.app_host, upstream_port);
         proxy_app::run(
             self.host.clone(),
             self.port,
@@ -337,7 +414,12 @@ struct Supervisor {
     cwd: PathBuf,
     signal: Signal,
     app_host: String,
-    upstream_port: u16,
+    /// Port for the app; fixed if --app-port was given, otherwise we rotate for each spawn.
+    pinned_port: Option<u16>,
+    /// Shared upstream selector for the proxy to dynamically determine the app port.
+    upstream: DynamicUpstream,
+    /// Args forwarded to the app on every start (from `--run-args`).
+    app_args: Vec<String>,
     /// The executable cargo produced for the most recent successful build.
     exe: Option<PathBuf>,
     child: Option<Child>,
@@ -425,17 +507,26 @@ impl Supervisor {
         }
 
         if !output.status.success() {
-            // A failure with no compiler diagnostics is cargo itself complaining
-            // (e.g. an unknown `-p`). Surface its stderr as a single diagnostic.
-            if terminal.trim().is_empty() {
-                terminal = String::from_utf8_lossy(&output.stderr).into_owned();
+            // cargo's progress and top-level error summary already streamed live
+            // to the terminal (stderr is inherited). The per-error diagnostics,
+            // though, only arrived as JSON on stdout — echo their rendered form so
+            // the terminal actually shows *what* failed, not just "could not
+            // compile due to N errors".
+            if !terminal.trim().is_empty() {
+                io::stderr().write_all(terminal.as_bytes()).ok();
             }
-            io::stderr().write_all(terminal.as_bytes()).ok();
             if diagnostics.is_empty() {
+                // No structured diagnostics: cargo itself refused (e.g. an unknown
+                // `-p`). That message already went to the terminal, but the browser
+                // overlay has nothing to render, so send it there.
                 diagnostics.push(Diagnostic {
                     level: "error".into(),
                     message: "build failed".into(),
-                    rendered: ansi_to_html::convert(&terminal).unwrap_or(terminal),
+                    rendered: if terminal.trim().is_empty() {
+                        "build failed — see the dev-server terminal for details".into()
+                    } else {
+                        ansi_to_html::convert(&terminal).unwrap_or(terminal)
+                    },
                     file: None,
                     line: None,
                     column: None,
@@ -450,7 +541,8 @@ impl Supervisor {
 
         if executables.len() > 1 {
             log::warn!(
-                "build produced {} binaries; running the last. Use `-- --bin <name>` to pick one.",
+                "build produced {} binaries; running the last. Use `--build-args \"--bin \
+                 <name>\"` to pick one.",
                 executables.len()
             );
         }
@@ -464,43 +556,108 @@ impl Supervisor {
             None => {
                 log::error!(
                     "build succeeded but produced no runnable binary — is this a binary crate? \
-                     try `--example <name>` or `-- --bin <name>`"
+                     try `--example <name>` or `--build-args \"--bin <name>\"`"
                 );
                 false
             }
         }
     }
 
-    fn spawn(&mut self) {
-        let Some(exe) = self.exe.clone() else { return };
+    /// Start the app on its port (freshly allocated unless `--app-port` pinned
+    /// it), wait for it to come up, and only then point the proxy at it — so any
+    /// previous child keeps serving until the new one is ready. Returns true if
+    /// the process was started (the caller may then retire the old child).
+    fn spawn(&mut self) -> bool {
+        let Some(exe) = self.exe.clone() else {
+            return false;
+        };
+
+        // A fresh port per spawn (unless pinned) lets the outgoing child keep
+        // serving on its old port while this one starts up on the new one.
+        let port = self.pinned_port.unwrap_or_else(free_port);
+
         // A fresh Command each time: the executable path can change between
         // builds (e.g. debug ↔ release, or a different selected target).
         let mut command = Command::new(exe);
         command
+            .args(&self.app_args)
             .current_dir(&self.cwd)
-            .env("PORT", self.upstream_port.to_string())
+            .env("PORT", port.to_string())
             .env("HOST", &self.app_host)
             .env("TRILLIUM_CLI_DEV_SERVER", "1");
+
         match command.spawn() {
             Ok(child) => {
                 self.child = Some(child);
-                wait_until_listening(&self.app_host, self.upstream_port);
+                let listening = wait_until_listening(&self.app_host, port);
+                // Flip the proxy over only now: while this child was starting
+                // up, any previous child kept receiving traffic on its own port.
+                self.upstream.set_port(port);
+                if listening {
+                    println!(
+                        "{}",
+                        format!("  app listening on {}:{}", self.app_host, port).green()
+                    );
+                } else {
+                    println!(
+                        "  {} app failed to bind to {}:{}",
+                        "warning:".yellow(),
+                        self.app_host,
+                        port
+                    );
+                }
+                true
             }
-            Err(e) => log::error!("failed to start app: {e}"),
+            Err(e) => {
+                println!("  {} failed to start app: {}", "error:".red().bold(), e);
+                false
+            }
         }
     }
 
-    /// Ask the running child to exit, then wait for it.
+    /// Fully retire the current child, blocking until it's gone. Used on the
+    /// fixed-port path, where the new child can't bind until this one lets go.
     fn stop(&mut self) {
-        if let Some(mut child) = self.child.take() {
-            let _ = signal::kill(Pid::from_raw(child.id() as i32), self.signal);
-            let _ = child.wait();
+        if let Some(child) = self.child.take() {
+            reap_child(child, self.signal);
+        }
+    }
+
+    /// Swap in the freshly-built app. With a rotating port the new child comes
+    /// up on a fresh port and takes over the instant it's listening, while the
+    /// previous child keeps draining its in-flight requests on the old port in
+    /// the background — a true hot-deploy with no gap. With a pinned port the
+    /// two can't coexist on the same port, so the old child is fully retired
+    /// first (blocking for the length of its drain).
+    fn hot_swap(&mut self) {
+        if self.pinned_port.is_some() {
+            self.stop();
+            if self.spawn() {
+                self.broadcast(Event::Restarted);
+            }
+            return;
+        }
+
+        // Keep the old child alive and serving until the new one is listening;
+        // `spawn` flips the proxy over only once that happens.
+        let old = self.child.take();
+        if self.spawn() {
+            if let Some(old) = old {
+                let sig = self.signal;
+                thread::spawn(move || reap_child(old, sig));
+            }
+            self.broadcast(Event::Restarted);
+        } else {
+            // The new build wouldn't even start; keep the old child serving.
+            self.child = old;
         }
     }
 
     fn run(mut self) {
-        if self.build() {
-            self.spawn();
+        if self.build() && self.spawn() {
+            // Reload any browser sitting on the "starting up" page now that the
+            // app has come up for the first time.
+            self.broadcast(Event::Restarted);
         }
 
         loop {
@@ -508,11 +665,7 @@ impl Supervisor {
                 Ok(()) => {
                     self.broadcast(Event::Rebuild);
                     if self.build() {
-                        self.stop();
-                        self.spawn();
-                        if self.child.is_some() {
-                            self.broadcast(Event::Restarted);
-                        }
+                        self.hot_swap();
                     }
                     // On failure the old child keeps running; the browser shows
                     // the CompileError overlay until the next good build.
@@ -525,8 +678,7 @@ impl Supervisor {
                         log::warn!("app exited on its own; restarting");
                         self.child = None;
                         thread::sleep(Duration::from_millis(300)); // crash-loop backoff
-                        self.spawn();
-                        if self.child.is_some() {
+                        if self.spawn() {
                             self.broadcast(Event::Restarted);
                         }
                     }
@@ -537,21 +689,79 @@ impl Supervisor {
     }
 }
 
+/// Retire a child process, escalating if it won't leave. First `sig` (SIGTERM
+/// by default) asks trillium to drain in-flight connections and exit, and we
+/// give it a generous window. If it's still alive we send `sig` again —
+/// trillium treats a second SIGTERM as "exit hard, now" — and wait briefly.
+/// Only if even that is ignored do we STONITH with SIGKILL, on the assumption
+/// the process is asleep at the wheel and will never come back on its own.
+///
+/// Blocks for as long as the drain takes, so callers that need the new child
+/// serving meanwhile should run this on a background thread.
+fn reap_child(mut child: Child, sig: Signal) {
+    let pid = Pid::from_raw(child.id() as i32);
+    let graceful = Duration::from_secs(12);
+
+    // 1. Graceful: let trillium drain in-flight connections and shut down.
+    let _ = signal::kill(pid, sig);
+    if wait_for_exit(&mut child, graceful) {
+        log::info!("app exited gracefully after {sig}");
+        return;
+    }
+
+    // 2. Impatient: a second signal tells trillium to exit hard.
+    log::warn!(
+        "app still running {}s after {sig}; sending it again for a hard exit",
+        graceful.as_secs()
+    );
+    let _ = signal::kill(pid, sig);
+    if wait_for_exit(&mut child, Duration::from_millis(100)) {
+        log::info!("app exited after a second {sig}");
+        return;
+    }
+
+    // 3. STONITH: the process is wedged; there is no node, only the process.
+    log::warn!("app ignored two {sig} signals; sending SIGKILL");
+    let _ = signal::kill(pid, Signal::SIGKILL);
+    let _ = child.wait();
+}
+
+/// Poll `child` until it exits or `timeout` elapses. Returns true if it exited
+/// (and reaps it); false on timeout so the caller can escalate.
+fn wait_for_exit(child: &mut Child, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return true,
+            Ok(None) => {}
+            Err(e) => {
+                log::warn!("failed to check child status: {e}");
+                return false;
+            }
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
 /// Block until something is listening on `host:port`, or give up after 10s.
-fn wait_until_listening(host: &str, port: u16) {
+/// Returns true if we connected successfully, false if we timed out.
+fn wait_until_listening(host: &str, port: u16) -> bool {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         if let Ok(addrs) = (host, port).to_socket_addrs() {
             for addr in addrs {
                 if TcpStream::connect_timeout(&addr, Duration::from_millis(200)).is_ok() {
                     log::info!("app is listening on {host}:{port}");
-                    return;
+                    return true;
                 }
             }
         }
         if Instant::now() >= deadline {
             log::warn!("app did not start listening on {host}:{port} within 10s");
-            return;
+            return false;
         }
         thread::sleep(Duration::from_millis(50));
     }
@@ -579,15 +789,50 @@ fn watch_loop(watches: Vec<PathBuf>, cwd: PathBuf, tx: mpsc::Sender<()>) {
     }
 
     loop {
-        if events_rx.recv().is_err() {
+        // Block for the first event of a burst.
+        let Ok(first) = events_rx.recv() else {
             return;
-        }
+        };
         // Coalesce a burst of events (one save touches many files) into a
-        // single rebuild by draining until things go quiet.
-        while events_rx.recv_timeout(Duration::from_millis(150)).is_ok() {}
+        // single rebuild by draining until things go quiet, collecting the
+        // paths that changed so we can report what actually triggered it.
+        let mut changed = BTreeSet::new();
+        record_changed(&mut changed, first, &cwd);
+        while let Ok(event) = events_rx.recv_timeout(Duration::from_millis(150)) {
+            record_changed(&mut changed, event, &cwd);
+        }
+
+        if changed.is_empty() {
+            log::info!("change detected; rebuilding");
+        } else {
+            let paths = changed
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            log::info!("change detected in {paths}; rebuilding");
+        }
+
         if tx.send(()).is_err() {
             return;
         }
+    }
+}
+
+/// Fold the paths from a notify event into `changed`, made relative to `cwd`
+/// when possible so the reported trigger is short and readable.
+fn record_changed(
+    changed: &mut BTreeSet<PathBuf>,
+    event: notify::Result<notify::Event>,
+    cwd: &Path,
+) {
+    let Ok(event) = event else { return };
+    for path in event.paths {
+        let path = path
+            .strip_prefix(cwd)
+            .map(Path::to_path_buf)
+            .unwrap_or(path);
+        changed.insert(path);
     }
 }
 
@@ -785,6 +1030,22 @@ fn cargo_metadata(cwd: &Path) -> Option<serde_json::Value> {
     serde_json::from_slice(&output.stdout).ok()
 }
 
+/// Split each shell-quoted `--build-args`/`--run-args` string into argv the way
+/// a shell would, flattening repeated occurrences into one list. Dies with a
+/// clear error (naming the flag) if a value has unbalanced quotes.
+fn shell_split(flag: &str, values: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    for value in values {
+        match shlex::split(value) {
+            Some(tokens) => out.extend(tokens),
+            None => die(format!(
+                "could not parse `{flag} {value:?}` — unbalanced quotes?"
+            )),
+        }
+    }
+    out
+}
+
 /// Extract package names from `-p`/`--package` arguments forwarded to cargo.
 fn packages_from_args(args: &[String]) -> Vec<String> {
     let mut names = Vec::new();
@@ -810,7 +1071,7 @@ fn free_port() -> u16 {
         .unwrap_or_else(|e| die(format!("could not allocate a port: {e}")))
 }
 
-fn print_banner(server: &DevServer, upstream_port: u16, watches: &[PathBuf]) {
+fn print_banner(server: &DevServer, watches: &[PathBuf]) {
     let watches = watches
         .iter()
         .map(|w| w.display().to_string())
@@ -825,12 +1086,8 @@ fn print_banner(server: &DevServer, upstream_port: u16, watches: &[PathBuf]) {
         server.host,
         server.port
     );
-    println!(
-        "  {}    http://{}:{}",
-        "app".dimmed(),
-        server.app_host,
-        upstream_port
-    );
+    // The app's port isn't announced here: it rotates per rebuild, so each
+    // `app listening on …` line reports the real one as the service comes up.
     println!("  {}    {}", "watch".dimmed(), watches);
     println!();
 }
@@ -904,7 +1161,7 @@ mod proxy_app {
     use async_broadcast::Sender;
     use futures_lite::{StreamExt, future};
     use std::sync::{Arc, Mutex};
-    use trillium::{Conn, KnownHeaderName, State};
+    use trillium::{Conn, Handler, KnownHeaderName, State, Status};
     use trillium_client::Client;
     use trillium_html_rewriter::{
         HtmlRewriter,
@@ -914,6 +1171,77 @@ mod proxy_app {
     use trillium_router::Router;
     use trillium_smol::ClientConfig;
     use trillium_websockets::{Message, WebSocket, WebSocketConn};
+
+    /// Served in place of the proxy's BadGateway while the app isn't up yet. The
+    /// live-reload script is injected into `<body>` by the HtmlRewriter (not
+    /// baked in here), so the page reloads itself the moment the app is ready.
+    const STARTING_UP_PAGE: &str = r#"<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>starting up…</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    background: #1e1e2e; color: #cdd6f4;
+    font: 15px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .box { text-align: center; padding: 32px; }
+  .spin {
+    width: 28px; height: 28px; margin: 0 auto 20px;
+    border: 3px solid #45475a; border-top-color: #a6e3a1;
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 { font-size: 16px; font-weight: 600; margin: 0 0 8px; color: #a6e3a1; }
+  p { margin: 0; color: #6c7086; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="spin"></div>
+    <h1>starting your trillium app…</h1>
+    <p>the first build can take a moment — this page reloads automatically.</p>
+  </div>
+</body>
+</html>"#;
+
+    /// Serves the "starting up" page whenever there's no live app to reach:
+    /// either the first build hasn't come up yet (upstream port still 0, so the
+    /// proxy passes the conn through untouched — status `None`), or the app is
+    /// momentarily unreachable during a crash/restart (proxy sets `BadGateway`).
+    /// Both get an honest `503 Service Unavailable` with a readable body; a real
+    /// status from the running app (a 500, a 404, anything) passes through.
+    ///
+    /// This runs in `before_send` rather than `run` because the proxy halts the
+    /// conn on the BadGateway path, which skips the rest of the `run` chain;
+    /// `before_send` fires on every handler regardless of halt.
+    struct StartingUpPage {
+        upstream: super::DynamicUpstream,
+    }
+
+    impl Handler for StartingUpPage {
+        async fn run(&self, conn: Conn) -> Conn {
+            conn
+        }
+
+        async fn before_send(&self, conn: Conn) -> Conn {
+            // A reachable app that answered for itself: leave it alone.
+            if self.upstream.is_ready() && conn.status() != Some(Status::BadGateway) {
+                return conn;
+            }
+            log::debug!(
+                "no app to reach (status={:?}, upstream_ready={}); serving starting-up page",
+                conn.status(),
+                self.upstream.is_ready()
+            );
+            conn.with_status(Status::ServiceUnavailable)
+                .with_response_header(KnownHeaderName::ContentType, "text/html; charset=utf-8")
+                .with_body(STARTING_UP_PAGE)
+        }
+    }
 
     /// Per-connection state for the live-reload websocket.
     #[derive(Clone)]
@@ -935,7 +1263,7 @@ mod proxy_app {
     pub fn run(
         host: String,
         port: u16,
-        upstream: String,
+        upstream: super::DynamicUpstream,
         events: Sender<Event>,
         editor: Option<String>,
         open_targets: Arc<Mutex<Vec<EditorTarget>>>,
@@ -967,7 +1295,10 @@ mod proxy_app {
                         "/_dev_server.ws",
                         (State::new(state), WebSocket::new(live_reload)),
                     ),
-                Proxy::new(client, &*upstream),
+                Proxy::new(client, upstream.clone()),
+                // Injects the live-reload client into the <body> of any HTML
+                // response — the proxied app *and* the starting-up page — so the
+                // latter reloads itself once the app is listening.
                 HtmlRewriter::new(|| {
                     Settings::new_send().append_element_content_handler(element!("body", |el| {
                         el.append(
@@ -977,6 +1308,10 @@ mod proxy_app {
                         Ok(())
                     }))
                 }),
+                // Last in the tuple so its `before_send` runs *first* (before_send
+                // fires right-to-left), letting it swap in the starting-up page
+                // before the rewriter above injects the reload client into it.
+                StartingUpPage { upstream },
             ));
     }
 

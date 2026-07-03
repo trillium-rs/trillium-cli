@@ -77,12 +77,12 @@ to.
 ## Selecting what to build
 
 The dev server learns which binary to run from the build itself — whatever
-`cargo build` produces is what it launches. Pass cargo's own selection flags
-after a `--` and it all just works:
+`cargo build` produces is what it launches. Hand cargo's own selection flags to
+`--build-args`, as a single shell-quoted string, and it all just works:
 
 ```sh
-trillium dev-server -- -p my-crate
-trillium dev-server -- --bin worker --features dev
+trillium dev-server --build-args "-p my-crate"
+trillium dev-server --build-args "--bin worker --features dev"
 ```
 
 `--example` and `--release` are first-class (the example also adds `examples/`
@@ -92,6 +92,22 @@ to the watch set; release disables the dev build speedups described below):
 trillium dev-server --example hello-world
 trillium dev-server --release
 ```
+
+## Passing arguments to your app
+
+Some binaries need a subcommand or a runtime flag before they start serving —
+for example an app whose first argument is `serve`. Hand those to `--run-args`;
+they're passed to your binary on **every** start, including after each rebuild:
+
+```sh
+trillium dev-server --run-args serve
+trillium dev-server --build-args "-p my-app" --run-args "serve --verbose"
+```
+
+Both `--build-args` and `--run-args` take one shell-quoted string, split the way
+a shell would — so quotes and spaces survive, e.g. a config path with a space in
+it. Each flag can be repeated, appending to the list. Build args go to `cargo
+build`; run args go to the binary it produces.
 
 ## What gets watched
 
@@ -104,7 +120,7 @@ Add more directories (templates, assets, a crate outside the dependency graph)
 with `-w`/`--watch`; they're watched *in addition* to the default:
 
 ```sh
-trillium dev-server -- -p web --watch ./templates --watch ./assets
+trillium dev-server --build-args "-p web" --watch ./templates --watch ./assets
 ```
 
 Filesystem events are debounced, so saving several files at once triggers a
@@ -180,25 +196,24 @@ when the app comes up on its private port.
 ## Full flag reference
 
 ```
-trillium dev-server [OPTIONS] [-- <CARGO_ARGS>...]
-
-Arguments:
-  [CARGO_ARGS]...  extra arguments forwarded to `cargo build`, after a `--`
+trillium dev-server [OPTIONS]
 
 Options:
-  -o, --host <HOST>          [env: HOST=]       [default: localhost]
-  -p, --port <PORT>          [env: PORT=]       [default: 8080]
-  -w, --watch <WATCH>        extra dirs to watch (repeatable, added to default)
+  -o, --host <HOST>              [env: HOST=]       [default: localhost]
+  -p, --port <PORT>              [env: PORT=]       [default: 8080]
+  -w, --watch <WATCH>            extra dirs to watch (repeatable, added to default)
   -c, --cwd <CWD>
   -r, --release
   -e, --example <EXAMPLE>
-      --app-port <APP_PORT>  [env: APP_PORT=]   (use when the app hardcodes its port)
-      --app-host <APP_HOST>  [default: localhost]
-      --no-fast              disable dev build speedups
-      --editor <EDITOR>      [env: EDITOR=]     (also falls back to $VISUAL)
-  -s, --signal <SIGNAL>      [default: SIGTERM]
+      --app-port <APP_PORT>      [env: APP_PORT=]   (use when the app hardcodes its port)
+      --app-host <APP_HOST>      [default: localhost]
+      --no-fast                  disable dev build speedups
+      --editor <EDITOR>          [env: EDITOR=]     (also falls back to $VISUAL)
+  -s, --signal <SIGNAL>          [default: SIGTERM]
   -v, --verbose...
   -q, --quiet...
+      --build-args <BUILD_ARGS>  cargo build selection flags (shell-quoted, repeatable)
+      --run-args <RUN_ARGS>      args passed to your app on every start (shell-quoted, repeatable)
   -h, --help
 ```
 
