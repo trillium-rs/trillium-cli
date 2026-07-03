@@ -13,40 +13,44 @@ categories = ["web-programming::http-server", "web-programming"]
 [features]
 default = ["serve", "client", "bench", "proxy", "rustls", "h3"]
 serve = [
-        "dep:trillium",
-        "dep:trillium-logger",
-        "dep:trillium-static",
-        "dep:trillium-proxy",
-        "dep:trillium-client",
-        "dep:trillium-compression",
-        "dep:trillium-ratelimit",
-        "dep:colored",
-        "dep:blocking",
-        "dep:percent-encoding",
-        "dep:querystrong",
-        "dep:size",
-        "dep:humantime",
+  "dep:trillium",
+  "dep:trillium-logger",
+  "dep:trillium-static",
+  "dep:trillium-proxy",
+  "dep:trillium-client",
+  "dep:trillium-compression",
+  "dep:trillium-ratelimit",
+  "dep:colored",
+  "dep:blocking",
+  "dep:percent-encoding",
+  "dep:querystrong",
+  "dep:size",
+  "dep:humantime",
 ]
 dev-server = [
-        "dep:ansi-to-html",
-        "dep:async-io",
-        "dep:async-broadcast",
-        "dep:futures-lite",
-        "dep:serde",
-        "dep:serde_json",
-        "dep:trillium",
-        "dep:trillium-proxy",
-        "dep:trillium-router",
-        "dep:trillium-client",
-        "dep:trillium-websockets",
-        "dep:trillium-html-rewriter",
-        "dep:notify",
-        "dep:nix",
-        "dep:signal-hook",
-        "dep:libc",
-        "dep:colored",
-        "dep:shlex",
-        "dep:url",
+  "dep:ansi-to-html",
+  "dep:async-io",
+  "dep:async-broadcast",
+  "dep:futures-lite",
+  "dep:serde",
+  "dep:serde_json",
+  "dep:trillium",
+  "dep:trillium-proxy",
+  "dep:trillium-router",
+  "dep:trillium-client",
+  "dep:trillium-websockets",
+  "dep:trillium-html-rewriter",
+  "dep:trillium-logger",
+  "trillium-logger/client",
+  "dep:trillium-compression",
+  "trillium-compression/client",
+  "dep:notify",
+  "dep:nix",
+  "dep:signal-hook",
+  "dep:libc",
+  "dep:colored",
+  "dep:shlex",
+  "dep:url",
 ]
 client = [
   "dep:async-fs",
@@ -64,17 +68,17 @@ client = [
   "dep:trillium-compression",
   "dep:humantime",
   "trillium-logger/client",
-  "trillium-compression/client"
+  "trillium-compression/client",
 ]
 bench = [
-        "client",
-        "dep:trillium-http",
-        "dep:hdrhistogram",
-        "dep:indicatif",
-        "dep:humantime",
-        "dep:async-channel",
-        "dep:async-io",
-        "dep:fastrand",
+  "client",
+  "dep:trillium-http",
+  "dep:hdrhistogram",
+  "dep:indicatif",
+  "dep:humantime",
+  "dep:async-channel",
+  "dep:async-io",
+  "dep:fastrand",
 ]
 proxy = [
   "dep:trillium",
@@ -89,37 +93,37 @@ proxy = [
   "dep:humantime",
   "dep:size",
   "trillium-logger/client",
-  "trillium-cache/client"
+  "trillium-cache/client",
 ]
 gateway = [
-        # Per-host SNI TLS (`gateway/sni.rs`) is built directly on rustls
-        # (`ServerConfig`/`CertifiedKey` + aws-lc-rs), so the gateway's TLS
-        # support is rustls-only by construction.
-        "rustls",
-        "dep:trillium",
-        "dep:trillium-http",
-        "dep:trillium-logger",
-        "dep:trillium-static",
-        "dep:trillium-proxy",
-        "dep:trillium-client",
-        "dep:trillium-router",
-        "dep:trillium-redirect",
-        "dep:trillium-html-rewriter",
-        "dep:trillium-compression",
-        "dep:trillium-caching-headers",
-        "dep:trillium-cache",
-        "dep:trillium-ratelimit",
-        "dep:knus",
-        "dep:miette",
-        "dep:signal-hook",
-        "dep:colored",
-        "dep:blocking",
-        "dep:percent-encoding",
-        "dep:querystrong",
-        "dep:size",
-        "dep:humantime",
-        "trillium-logger/client",
-        "trillium-cache/client",
+  # Per-host SNI TLS (`gateway/sni.rs`) is built directly on rustls
+  # (`ServerConfig`/`CertifiedKey` + aws-lc-rs), so the gateway's TLS
+  # support is rustls-only by construction.
+  "rustls",
+  "dep:trillium",
+  "dep:trillium-http",
+  "dep:trillium-logger",
+  "dep:trillium-static",
+  "dep:trillium-proxy",
+  "dep:trillium-client",
+  "dep:trillium-router",
+  "dep:trillium-redirect",
+  "dep:trillium-html-rewriter",
+  "dep:trillium-compression",
+  "dep:trillium-caching-headers",
+  "dep:trillium-cache",
+  "dep:trillium-ratelimit",
+  "dep:knus",
+  "dep:miette",
+  "dep:signal-hook",
+  "dep:colored",
+  "dep:blocking",
+  "dep:percent-encoding",
+  "dep:querystrong",
+  "dep:size",
+  "dep:humantime",
+  "trillium-logger/client",
+  "trillium-cache/client",
 ]
 grpc = ["dep:trillium-grpc-codegen"]
 openssl = ["dep:trillium-openssl"]
@@ -140,26 +144,28 @@ log = "0.4.33"
 serde = { version = "1.0.228", features = ["derive"], optional = true }
 serde_json = { version = "1.0.150", optional = true }
 
-trillium = { version = "1.3.0", optional = true}
+trillium = { version = "1.3.0", optional = true }
 trillium-native-tls = { version = "0.6.3", optional = true }
 trillium-rustls = { version = "0.11.3", optional = true }
 trillium-proxy = { version = "0.8.2", optional = true }
 trillium-router = { version = "0.5.2", optional = true }
-trillium-static = { version = "0.6.1", features = [
-        "smol",
-], optional = true }
+trillium-static = { version = "0.6.1", features = ["smol"], optional = true }
 trillium-websockets = { version = "0.8.2", features = [
-        "json",
+  "json",
 ], optional = true }
 trillium-smol = { version = "0.7.0" }
 trillium-client = { version = "0.9.8", features = [
-        "sonic-rs", "hickory", "sse"
+  "sonic-rs",
+  "hickory",
+  "sse",
 ], optional = true }
 trillium-client-retry = { version = "0.0.1", optional = true }
 trillium-http = { version = "1.3.10", optional = true }
 trillium-logger = { version = "0.5.4", optional = true }
 trillium-html-rewriter = { version = "0.6", optional = true }
-trillium-quinn = { version = "0.1.6", optional = true, features = ["webpki-roots"] }
+trillium-quinn = { version = "0.1.6", optional = true, features = [
+  "webpki-roots",
+] }
 trillium-openssl = { version = "0.2", optional = true }
 trillium-server-common = "0.7.7"
 trillium-grpc-codegen = { version = "0.3", optional = true }
@@ -192,8 +198,8 @@ url = { version = "2.5", optional = true }
 signal-hook = { version = "0.4.4", optional = true }
 libc = { version = "0.2.186", optional = true }
 nix = { version = "0.31.3", default-features = false, features = [
-        "signal",
-        "process",
+  "signal",
+  "process",
 ], optional = true }
 notify = { version = "8.2.0", optional = true }
 shlex = { version = "2.0.1", optional = true }
