@@ -25,6 +25,7 @@ use std::{
     time::{Duration, Instant},
 };
 use trillium::Conn;
+use trillium_logger::LogFormatter;
 use trillium_proxy::upstream::UpstreamSelector;
 use url::Url;
 
@@ -56,10 +57,8 @@ impl DynamicUpstream {
     fn is_ready(&self) -> bool {
         self.port.load(Ordering::Relaxed) != 0
     }
-}
 
-impl UpstreamSelector for DynamicUpstream {
-    fn determine_upstream(&self, _conn: &mut Conn) -> Option<Url> {
+    fn upstream_base(&self) -> Option<Url> {
         let port = self.port.load(Ordering::Relaxed);
         // `None` here makes the proxy 502; the readiness gate ahead of it should
         // have already served the "starting up" page, so this is just a guard.
@@ -67,6 +66,20 @@ impl UpstreamSelector for DynamicUpstream {
             return None;
         }
         format!("http://{}:{port}", self.host).parse().ok()
+    }
+}
+
+impl UpstreamSelector for DynamicUpstream {
+    fn determine_upstream(&self, conn: &mut Conn) -> Option<Url> {
+        self.upstream_base()?.determine_upstream(conn)
+    }
+}
+
+impl LogFormatter for DynamicUpstream {
+    type Output = u16;
+
+    fn format(&self, _conn: &Conn, _color: bool) -> Self::Output {
+        self.port.load(Ordering::Relaxed)
     }
 }
 
@@ -90,6 +103,16 @@ pub struct DevServer {
     /// dependency rebuilds too. Anything passed here is watched in addition.
     #[arg(short, long)]
     watch: Vec<PathBuf>,
+
+    /// Paths to ignore, even when nested inside a watched directory (repeated)
+    ///
+    /// The watcher is recursive, so a build-output directory living under a
+    /// watched tree — e.g. a frontend `dist/` that gets embedded in the binary —
+    /// will otherwise retrigger the very build that produced it, an endless
+    /// loop. List such paths here to break it. Matches a path and everything
+    /// under it; relative paths are resolved against `--cwd`.
+    #[arg(short, long, value_name = "PATH")]
+    ignore: Vec<PathBuf>,
 
     /// Working directory to build and run in (defaults to the current dir)
     #[arg(short, long)]
@@ -322,8 +345,9 @@ impl DevServer {
         // Watch scope is small by default: the src of the crate cargo will
         // build (resolved from `-p`/the workspace), plus anything the user adds.
         let watches = resolve_watch_dirs(&cwd, &build_args, self.example.is_some(), &self.watch);
+        let ignores = resolve_ignore_dirs(&cwd, &self.ignore);
 
-        print_banner(&self, &watches);
+        print_banner(&self, &watches, &ignores);
 
         let (tx, rx) = mpsc::channel::<()>();
         let (mut broadcast_tx, broadcast_rx) = async_broadcast::broadcast::<Event>(16);
@@ -352,7 +376,7 @@ impl DevServer {
         {
             let tx = tx.clone();
             let cwd = cwd.clone();
-            thread::spawn(move || watch_loop(watches, cwd, tx));
+            thread::spawn(move || watch_loop(watches, ignores, cwd, tx));
         }
 
         // Shared with the websocket handler: locations the error overlay may
@@ -768,7 +792,12 @@ fn wait_until_listening(host: &str, port: u16) -> bool {
 }
 
 /// Watch the given directories and send `()` on any change, debounced.
-fn watch_loop(watches: Vec<PathBuf>, cwd: PathBuf, tx: mpsc::Sender<()>) {
+///
+/// `ignores` are absolute path prefixes filtered out of every event: the
+/// watcher is recursive and `notify` can't exclude a nested subtree, so we drop
+/// their events here instead. A burst whose paths are *all* ignored triggers no
+/// rebuild — that's what keeps a build-output dir from rebuilding itself.
+fn watch_loop(watches: Vec<PathBuf>, ignores: Vec<PathBuf>, cwd: PathBuf, tx: mpsc::Sender<()>) {
     let (events_tx, events_rx) = mpsc::channel();
     let mut watcher = RecommendedWatcher::new(events_tx, notify::Config::default())
         .unwrap_or_else(|e| die(format!("could not start file watcher: {e}")));
@@ -796,10 +825,18 @@ fn watch_loop(watches: Vec<PathBuf>, cwd: PathBuf, tx: mpsc::Sender<()>) {
         // Coalesce a burst of events (one save touches many files) into a
         // single rebuild by draining until things go quiet, collecting the
         // paths that changed so we can report what actually triggered it.
+        // `relevant` tracks whether anything outside the ignore list moved: a
+        // burst that's entirely ignored (e.g. a rebuilt `dist/`) must not
+        // retrigger, while a genuine pathless event still should.
         let mut changed = BTreeSet::new();
-        record_changed(&mut changed, first, &cwd);
+        let mut relevant = record_changed(&mut changed, first, &cwd, &ignores);
         while let Ok(event) = events_rx.recv_timeout(Duration::from_millis(150)) {
-            record_changed(&mut changed, event, &cwd);
+            relevant |= record_changed(&mut changed, event, &cwd, &ignores);
+        }
+
+        if !relevant {
+            // The whole burst landed inside an ignored path; stay quiet.
+            continue;
         }
 
         if changed.is_empty() {
@@ -820,20 +857,36 @@ fn watch_loop(watches: Vec<PathBuf>, cwd: PathBuf, tx: mpsc::Sender<()>) {
 }
 
 /// Fold the paths from a notify event into `changed`, made relative to `cwd`
-/// when possible so the reported trigger is short and readable.
+/// when possible so the reported trigger is short and readable. Paths under any
+/// `ignores` prefix are dropped.
+///
+/// Returns whether the event is relevant to a rebuild: true if it carried at
+/// least one non-ignored path, or no path at all (a pathless event can't be
+/// attributed, so we treat it as relevant rather than silently swallow it);
+/// false only when every path it named was ignored.
 fn record_changed(
     changed: &mut BTreeSet<PathBuf>,
     event: notify::Result<notify::Event>,
     cwd: &Path,
-) {
-    let Ok(event) = event else { return };
+    ignores: &[PathBuf],
+) -> bool {
+    let Ok(event) = event else { return false };
+    if event.paths.is_empty() {
+        return true;
+    }
+    let mut relevant = false;
     for path in event.paths {
+        if ignores.iter().any(|ignore| path.starts_with(ignore)) {
+            continue;
+        }
+        relevant = true;
         let path = path
             .strip_prefix(cwd)
             .map(Path::to_path_buf)
             .unwrap_or(path);
         changed.insert(path);
     }
+    relevant
 }
 
 /// Apply build-time speedups for dev builds: trim debuginfo (the biggest link
@@ -914,6 +967,25 @@ fn resolve_watch_dirs(
         log::warn!("couldn't tell which crate to watch — pass `-p <crate>` or `--watch <dir>`");
     }
     dirs
+}
+
+/// Resolve `--ignore` paths to absolute prefixes for event filtering. Relative
+/// paths are taken against `cwd`, and each is canonicalized so it matches the
+/// real paths `notify` reports (the watcher resolves symlinks); a path that
+/// doesn't exist yet falls back to its joined form so it still matches once it
+/// appears.
+fn resolve_ignore_dirs(cwd: &Path, ignores: &[PathBuf]) -> Vec<PathBuf> {
+    ignores
+        .iter()
+        .map(|ignore| {
+            let path = if ignore.is_relative() {
+                cwd.join(ignore)
+            } else {
+                ignore.clone()
+            };
+            path.canonicalize().unwrap_or(path)
+        })
+        .collect()
 }
 
 /// Returns `(seed crate dirs, dependency-closure crate dirs)` for the build.
@@ -1071,7 +1143,7 @@ fn free_port() -> u16 {
         .unwrap_or_else(|e| die(format!("could not allocate a port: {e}")))
 }
 
-fn print_banner(server: &DevServer, watches: &[PathBuf]) {
+fn print_banner(server: &DevServer, watches: &[PathBuf], ignores: &[PathBuf]) {
     let watches = watches
         .iter()
         .map(|w| w.display().to_string())
@@ -1089,6 +1161,14 @@ fn print_banner(server: &DevServer, watches: &[PathBuf]) {
     // The app's port isn't announced here: it rotates per rebuild, so each
     // `app listening on …` line reports the real one as the service comes up.
     println!("  {}    {}", "watch".dimmed(), watches);
+    if !ignores.is_empty() {
+        let ignores = ignores
+            .iter()
+            .map(|i| i.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("  {}   {}", "ignore".dimmed(), ignores);
+    }
     println!();
 }
 
@@ -1163,10 +1243,12 @@ mod proxy_app {
     use std::sync::{Arc, Mutex};
     use trillium::{Conn, Handler, KnownHeaderName, State, Status};
     use trillium_client::Client;
+    use trillium_compression::client::Compression;
     use trillium_html_rewriter::{
         HtmlRewriter,
         html::{Settings, element, html_content::ContentType},
     };
+    use trillium_logger::{Logger, client::ClientLogger, log_format};
     use trillium_proxy::Proxy;
     use trillium_router::Router;
     use trillium_smol::ClientConfig;
@@ -1224,14 +1306,11 @@ mod proxy_app {
 
     impl Handler for StartingUpPage {
         async fn run(&self, conn: Conn) -> Conn {
-            conn
-        }
-
-        async fn before_send(&self, conn: Conn) -> Conn {
             // A reachable app that answered for itself: leave it alone.
-            if self.upstream.is_ready() && conn.status() != Some(Status::BadGateway) {
+            if !matches!(conn.status(), Some(Status::BadGateway) | None) {
                 return conn;
             }
+
             log::debug!(
                 "no app to reach (status={:?}, upstream_ready={}); serving starting-up page",
                 conn.status(),
@@ -1269,7 +1348,9 @@ mod proxy_app {
         open_targets: Arc<Mutex<Vec<EditorTarget>>>,
         status: Arc<Mutex<Option<Event>>>,
     ) {
-        let client = Client::new(ClientConfig::default().with_nodelay(true));
+        let client = Client::new(ClientConfig::default().with_nodelay(true))
+            .with_handler((ClientLogger::new(), Compression::new()));
+
         let state = WsState {
             events,
             editor,
@@ -1283,6 +1364,20 @@ mod proxy_app {
             .with_port(port)
             .with_host(&host)
             .run((
+                Logger::new().with_formatter(log_format!(
+                    "[proxy {upstream} {version} {method} {url} {response_time} {status} \
+                     {body_len_human}]",
+                    upstream = upstream.clone()
+                )),
+                HtmlRewriter::new(|| {
+                    Settings::new_send().append_element_content_handler(element!("body", |el| {
+                        el.append(
+                            r#"<script src="/_dev_server.js"></script>"#,
+                            ContentType::Html,
+                        );
+                        Ok(())
+                    }))
+                }),
                 Router::new()
                     .get("/_dev_server.js", |conn: Conn| async move {
                         conn.with_response_header(
@@ -1295,22 +1390,7 @@ mod proxy_app {
                         "/_dev_server.ws",
                         (State::new(state), WebSocket::new(live_reload)),
                     ),
-                Proxy::new(client, upstream.clone()),
-                // Injects the live-reload client into the <body> of any HTML
-                // response — the proxied app *and* the starting-up page — so the
-                // latter reloads itself once the app is listening.
-                HtmlRewriter::new(|| {
-                    Settings::new_send().append_element_content_handler(element!("body", |el| {
-                        el.append(
-                            r#"<script src="/_dev_server.js"></script>"#,
-                            ContentType::Html,
-                        );
-                        Ok(())
-                    }))
-                }),
-                // Last in the tuple so its `before_send` runs *first* (before_send
-                // fires right-to-left), letting it swap in the starting-up page
-                // before the rewriter above injects the reload client into it.
+                Proxy::new(client, upstream.clone()).without_halting(),
                 StartingUpPage { upstream },
             ));
     }
