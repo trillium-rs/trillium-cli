@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1](https://github.com/trillium-rs/trillium-cli/compare/v0.11.0...v0.11.1) - 2026-07-04
+
+### Fixed
+
+- *(dev-server)* make the proxy forward websockets
+- *(dev-server)* assorted fixes
+
 ## [0.11.0](https://github.com/trillium-rs/trillium-cli/compare/v0.10.0...v0.11.0) - 2026-07-03
 
 ### Added
