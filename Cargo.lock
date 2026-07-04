@@ -3685,9 +3685,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-cache"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad79aa57d1c642e0089ec680d6aaca9396bb07db6f6d0f0c5cfce07764bac5aa"
+checksum = "39e33f4dfec550ec2b86591f020f5ab09ab218357f7b508a94102a7e26a76280"
 dependencies = [
  "fieldwork",
  "futures-lite 2.6.1",
@@ -3698,6 +3698,7 @@ dependencies = [
  "trillium-caching-headers",
  "trillium-client",
  "trillium-http",
+ "trillium-server-common",
  "url",
 ]
 

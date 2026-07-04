@@ -169,7 +169,7 @@ trillium-quinn = { version = "0.1.6", optional = true, features = [
 trillium-openssl = { version = "0.2", optional = true }
 trillium-server-common = "0.7.7"
 trillium-grpc-codegen = { version = "0.3", optional = true }
-trillium-cache = { version = "0.1", optional = true }
+trillium-cache = { version = "0.2", optional = true }
 trillium-redirect = { version = "0.3", optional = true, features = ["client"] }
 trillium-caching-headers = { version = "0.4.1", optional = true }
 trillium-compression = { version = "0.3.2", optional = true }
