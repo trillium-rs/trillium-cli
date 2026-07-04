@@ -1390,7 +1390,9 @@ mod proxy_app {
                         "/_dev_server.ws",
                         (State::new(state), WebSocket::new(live_reload)),
                     ),
-                Proxy::new(client, upstream.clone()).without_halting(),
+                Proxy::new(client, upstream.clone())
+                    .without_halting()
+                    .with_websocket_upgrades(),
                 StartingUpPage { upstream },
             ));
     }
