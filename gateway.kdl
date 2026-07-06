@@ -4,8 +4,12 @@ compression true
 rate-limit "100/min" burst=200
 
 // Response caching for proxied upstreams (opt-in). Remove this block to disable.
+// The storage tier is chosen by which children are present: `memory` alone is
+// in-memory only; `disk` alone persists everything to disk across restarts;
+// both together tier a hot in-memory cache over the durable on-disk one.
 cache {
-    capacity "256MiB"
+    memory "256MiB"                             // hot in-memory tier
+    disk "/var/cache/trillium" size="10GiB"     // durable on-disk tier (persists)
     max-body "16MiB"
     time-to-idle "5m"
 }

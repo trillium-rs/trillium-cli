@@ -1,4 +1,5 @@
 use crate::{
+    cache::{self, CacheSpec},
     ratelimit::RateLimit,
     server_tls::ServerTls,
     tls::{Tls, parse_url},
@@ -6,7 +7,6 @@ use crate::{
 use clap::{Parser, ValueEnum};
 use std::{fmt::Debug, path::PathBuf, time::Duration};
 use trillium::{Conn, Method, Status};
-use trillium_cache::{InMemoryStorage, client::Cache};
 use trillium_client::Client;
 use trillium_logger::{
     Logger,
@@ -123,9 +123,25 @@ pub struct ProxyCli {
     #[arg(long, help_heading = "Cache")]
     no_cache: bool,
 
-    /// maximum total in-memory cache size, e.g. 256MiB, 1GB
-    #[arg(long, value_parser = parse_size, default_value = "256MiB", conflicts_with = "no_cache", help_heading = "Cache")]
-    cache_capacity: u64,
+    /// in-memory (hot) cache tier size, e.g. 256MiB, 1GB; set to 0 to drop the
+    /// in-memory tier and cache only to disk (requires --cache-disk)
+    #[arg(long, alias = "cache-capacity", value_parser = parse_size, default_value = "256MiB", conflicts_with = "no_cache", help_heading = "Cache")]
+    cache_memory_capacity: u64,
+
+    /// directory for an on-disk cache tier; persists cached responses across
+    /// restarts. Given alone it tiers a hot in-memory cache over durable disk;
+    /// with --cache-memory-capacity 0 it caches only to disk
+    #[arg(
+        long,
+        value_name = "DIR",
+        conflicts_with = "no_cache",
+        help_heading = "Cache"
+    )]
+    cache_disk: Option<PathBuf>,
+
+    /// on-disk cache tier size, e.g. 10GiB (only used with --cache-disk)
+    #[arg(long, value_parser = parse_size, default_value = "1GiB", conflicts_with = "no_cache", help_heading = "Cache")]
+    cache_disk_capacity: u64,
 
     /// maximum cacheable response body; larger responses stream through uncached
     #[arg(long, value_parser = parse_size, default_value = "16MiB", conflicts_with = "no_cache", help_heading = "Cache")]
@@ -210,19 +226,20 @@ impl ProxyCli {
             .filter_level(self.verbose.log_level_filter())
             .init();
 
-        // `Option<T>` is itself a `ClientHandler`, so a `None` here drops caching
-        // entirely instead of installing a do-nothing cache.
-        let cache = (!self.no_cache).then(|| {
-            let mut storage = InMemoryStorage::new().with_max_capacity_bytes(self.cache_capacity);
-            if let Some(time_to_idle) = self.cache_time_to_idle {
-                storage = storage.with_time_to_idle(time_to_idle);
-            }
-            if let Some(time_to_live) = self.cache_time_to_live {
-                storage = storage.with_time_to_live(time_to_live);
-            }
-            Cache::new(storage)
-                .with_max_cacheable_size(self.cache_max_body)
-                .shared()
+        // Resolve the cache flags into a primitive spec, then let the shared
+        // `cache` module select the storage backend. `--no-cache` (or a spec
+        // with no tiers) leaves the client uncached. `--cache-memory-capacity 0`
+        // drops the in-memory tier, so `--cache-disk` alone tiers hot memory
+        // over durable disk and pairing it with `0` caches only to disk.
+        let cache_spec = (!self.no_cache).then(|| CacheSpec {
+            memory: (self.cache_memory_capacity > 0).then_some(self.cache_memory_capacity),
+            disk: self
+                .cache_disk
+                .clone()
+                .map(|path| (path, self.cache_disk_capacity)),
+            max_body: self.cache_max_body,
+            time_to_idle: self.cache_time_to_idle,
+            time_to_live: self.cache_time_to_live,
         });
 
         #[cfg(unix)]
@@ -231,10 +248,11 @@ impl ProxyCli {
         let unix_socket: Option<PathBuf> = None;
 
         let client = crate::tls::build_client(self.client_tls, self.insecure, unix_socket)
-            .with_handler((
-                ClientLogger::new().with_formatter(("-> ", client_dev_formatter)),
-                cache,
-            ));
+            .with_handler(ClientLogger::new().with_formatter(("-> ", client_dev_formatter)));
+        let client = match cache_spec {
+            Some(spec) => cache::attach(client, spec),
+            None => client,
+        };
         // `--dns` and `--unix-socket` are mutually exclusive (a fixed socket
         // never resolves a host), so this is a no-op whenever a socket is set.
         let client = self.apply_dns(client);

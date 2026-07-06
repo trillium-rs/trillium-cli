@@ -64,20 +64,38 @@ equivalent is opt-in, because a gateway shouldn't silently cache dynamic
 upstreams.)
 
 ```sh
-# 1 GiB cache, evict entries idle for 5 minutes
+# 1 GiB in-memory cache, evict entries idle for 5 minutes
 trillium proxy http://localhost:4000 \
-  --cache-capacity 1GiB --cache-time-to-idle 5m
+  --cache-memory-capacity 1GiB --cache-time-to-idle 5m
 ```
 
-| Flag                    | Default  | Notes                                                      |
-|-------------------------|----------|------------------------------------------------------------|
-| `--no-cache`            |          | disable caching entirely                                   |
-| `--cache-capacity`      | `256MiB` | maximum total in-memory cache size (e.g. `256MiB`, `1GB`)  |
-| `--cache-max-body`      | `16MiB`  | largest cacheable body; bigger responses stream uncached   |
-| `--cache-time-to-idle`  |          | evict entries not read within this duration (e.g. `5m`)    |
-| `--cache-time-to-live`  |          | evict entries this long after they are stored (e.g. `1h`)  |
+By default the cache lives in memory and is lost on restart. Point
+`--cache-disk` at a directory to add a **durable on-disk tier** — cached
+responses then survive restarts, so the proxy comes back warm instead of
+re-fetching everything from the upstream:
 
-The cache flags conflict with `--no-cache`.
+```sh
+# hot in-memory cache over a durable 10 GiB on-disk tier
+trillium proxy http://localhost:4000 \
+  --cache-disk /var/cache/trillium --cache-disk-capacity 10GiB
+```
+
+Which tiers exist follows the flags: `--cache-disk` alone tiers a hot in-memory
+cache over durable disk; add `--cache-memory-capacity 0` to drop the in-memory
+tier and cache **only** to disk (for memory-constrained hosts).
+
+| Flag                      | Default  | Notes                                                          |
+|---------------------------|----------|----------------------------------------------------------------|
+| `--no-cache`              |          | disable caching entirely                                       |
+| `--cache-memory-capacity` | `256MiB` | in-memory (hot) tier size; `0` drops it (disk-only)            |
+| `--cache-disk`            |          | directory for a durable on-disk tier; persists across restarts |
+| `--cache-disk-capacity`   | `1GiB`   | on-disk tier size (only used with `--cache-disk`)              |
+| `--cache-max-body`        | `16MiB`  | largest cacheable body; bigger responses stream uncached       |
+| `--cache-time-to-idle`    |          | evict entries not read within this duration (e.g. `5m`)        |
+| `--cache-time-to-live`    |          | evict entries this long after they are stored (e.g. `1h`)      |
+
+The cache flags conflict with `--no-cache`. `--cache-capacity` is accepted as a
+deprecated alias for `--cache-memory-capacity`.
 
 ## Listening, HTTPS, and HTTP/3
 
@@ -162,8 +180,10 @@ Options:
 
 Cache:
       --no-cache
-      --cache-capacity <CACHE_CAPACITY>           [default: 256MiB]
-      --cache-max-body <CACHE_MAX_BODY>           [default: 16MiB]
+      --cache-memory-capacity <CACHE_MEMORY_CAPACITY>   [default: 256MiB]
+      --cache-disk <DIR>
+      --cache-disk-capacity <CACHE_DISK_CAPACITY>       [default: 1GiB]
+      --cache-max-body <CACHE_MAX_BODY>                 [default: 16MiB]
       --cache-time-to-idle <CACHE_TIME_TO_IDLE>
       --cache-time-to-live <CACHE_TIME_TO_LIVE>
 ```

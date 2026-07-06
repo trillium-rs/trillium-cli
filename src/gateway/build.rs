@@ -16,10 +16,13 @@ use super::{
     },
     upstream,
 };
-use crate::{directory_listing::DirectoryListing, tls::Tls};
-use std::io;
+use crate::{
+    cache::{self, CacheSpec},
+    directory_listing::DirectoryListing,
+    tls::Tls,
+};
+use std::{io, path::PathBuf, time::Duration};
 use trillium::{BoxedHandler, Conn, Handler, HttpConfig, KnownHeaderName, Method, Status};
-use trillium_cache::{InMemoryStorage, client::Cache};
 use trillium_client::Client;
 use trillium_html_rewriter::{
     HtmlRewriter, Settings,
@@ -31,8 +34,11 @@ use trillium_router::Router;
 use trillium_server_common::{ServerHandle, Swansong};
 use trillium_static::StaticFileHandler;
 
-/// Default cache knobs, matching `trillium proxy`.
-const DEFAULT_CACHE_CAPACITY: u64 = 256 * 1024 * 1024;
+/// Default cache knobs. Memory/max-body match `trillium proxy`; the on-disk
+/// tier's default matches `FileSystemStorage`'s own 1GiB (disk is cheap to grow
+/// relative to memory).
+const DEFAULT_CACHE_MEMORY: u64 = 256 * 1024 * 1024;
+const DEFAULT_CACHE_DISK: u64 = 1024 * 1024 * 1024;
 const DEFAULT_CACHE_MAX_BODY: u64 = 16 * 1024 * 1024;
 
 /// Build the shared proxy client, attaching a response cache if the config
@@ -42,7 +48,7 @@ pub fn build_client(config: &Config) -> Client {
     let client = Client::from(Tls::default());
     let client = match &config.cache {
         None => client,
-        Some(cache) => client.with_handler(build_cache(cache)),
+        Some(cache) => attach_cache(client, cache),
     };
     match &config.dns {
         // The string was already validated at load (`Config::validate_dns`), so
@@ -57,26 +63,40 @@ pub fn build_client(config: &Config) -> Client {
     }
 }
 
-fn build_cache(cache: &CacheNode) -> impl trillium_client::ClientHandler {
-    let capacity = cache
-        .capacity
-        .as_deref()
-        .map_or(DEFAULT_CACHE_CAPACITY, parse_size);
-    let max_body = cache
-        .max_body
-        .as_deref()
-        .map_or(DEFAULT_CACHE_MAX_BODY, parse_size);
+/// Resolve the KDL `cache` node into a primitive [`CacheSpec`] and attach the
+/// selected storage backend (in-memory / on-disk / tiered) via [`cache::attach`].
+/// Tier selection follows which of `memory`/`disk` the config declares; `max-body`
+/// and the eviction durations apply to whichever tiers exist.
+fn attach_cache(client: Client, cache: &CacheNode) -> Client {
+    // `capacity` is the deprecated pre-tiering name for the in-memory tier;
+    // treat it as a synonym for `memory` so old configs keep working. `memory`
+    // wins if both are given. Absent ⇒ no in-memory tier unless it's the only
+    // one, in which case a bare `cache` still means an in-memory cache.
+    let memory = cache.memory.as_deref().or(cache.capacity.as_deref());
+    let disk = cache.disk.as_ref().map(|disk| {
+        let capacity = disk.size.as_deref().map_or(DEFAULT_CACHE_DISK, parse_size);
+        (PathBuf::from(&disk.path), capacity)
+    });
+    // A bare `cache` (no tiers named at all) is an in-memory cache with defaults.
+    let memory = match (memory, &disk) {
+        (Some(memory), _) => Some(parse_size(memory)),
+        (None, None) => Some(DEFAULT_CACHE_MEMORY),
+        (None, Some(_)) => None,
+    };
 
-    let mut storage = InMemoryStorage::new().with_max_capacity_bytes(capacity);
-    if let Some(tti) = &cache.time_to_idle {
-        storage = storage.with_time_to_idle(parse_duration(tti));
-    }
-    if let Some(ttl) = &cache.time_to_live {
-        storage = storage.with_time_to_live(parse_duration(ttl));
-    }
-    Cache::new(storage)
-        .with_max_cacheable_size(max_body)
-        .shared()
+    cache::attach(
+        client,
+        CacheSpec {
+            memory,
+            disk,
+            max_body: cache
+                .max_body
+                .as_deref()
+                .map_or(DEFAULT_CACHE_MAX_BODY, parse_size),
+            time_to_idle: cache.time_to_idle.as_deref().map(parse_duration),
+            time_to_live: cache.time_to_live.as_deref().map(parse_duration),
+        },
+    )
 }
 
 /// Every HTTP method a route stack is registered for, so a route matches on
@@ -235,7 +255,7 @@ fn parse_size(s: &str) -> u64 {
 }
 
 /// Parse a human-readable duration like `5m` or `1h`.
-fn parse_duration(s: &str) -> std::time::Duration {
+fn parse_duration(s: &str) -> Duration {
     humantime::parse_duration(s).unwrap_or_else(|e| panic!("invalid duration {s:?}: {e}"))
 }
 

@@ -60,13 +60,38 @@ pub struct Config {
     pub bindings: Vec<Binding>,
 }
 
-/// `cache { capacity "256MiB"; max-body "16MiB"; time-to-idle "5m"; time-to-live "1h" }`.
-/// All fields optional; size/duration strings are parsed in the build step.
+/// ```kdl
+/// cache {
+///     memory "256MiB"                          // in-memory tier size
+///     disk "/var/cache/trillium" size="10GiB"  // on-disk tier (persists)
+///     max-body "16MiB"
+///     time-to-idle "5m"
+///     time-to-live "1h"
+/// }
+/// ```
+///
+/// The storage tier is chosen by which of `memory`/`disk` are present: `memory`
+/// alone (or a bare `cache`) is in-memory only; `disk` alone persists entirely
+/// to disk across restarts; both together tier a hot in-memory cache over the
+/// durable on-disk one. `max-body` and the eviction durations apply across
+/// whichever tiers exist. All fields optional; size/duration strings are parsed
+/// in the build step.
 #[derive(knus::Decode, Debug, Default)]
 pub struct CacheNode {
-    /// Maximum total in-memory cache size (default 256MiB).
+    /// In-memory tier size (default 256MiB). Present ⇒ an in-memory cache; with
+    /// `disk` also present, this is the hot tier over the on-disk cold tier.
+    #[knus(child, unwrap(argument))]
+    pub memory: Option<String>,
+    /// Deprecated alias for `memory`, accepted for backward compatibility with
+    /// pre-tiering configs (`cache { capacity "256MiB" }`). Prefer `memory`; if
+    /// both are given, `memory` wins.
     #[knus(child, unwrap(argument))]
     pub capacity: Option<String>,
+    /// On-disk tier: `disk "<path>" size="<size>"`. Persists cached responses
+    /// across restarts. Present ⇒ an on-disk cache; with `memory` also present,
+    /// this is the durable cold tier.
+    #[knus(child)]
+    pub disk: Option<DiskNode>,
     /// Largest cacheable response body; bigger responses stream uncached
     /// (default 16MiB).
     #[knus(child, unwrap(argument))]
@@ -77,6 +102,18 @@ pub struct CacheNode {
     /// Evict entries this long after they are stored, e.g. `1h`.
     #[knus(child, unwrap(argument))]
     pub time_to_live: Option<String>,
+}
+
+/// `disk "<path>" size="<size>"` — the on-disk cache tier. `path` is the root
+/// directory (created on demand); `size` is the byte cap (default 1GiB).
+#[derive(knus::Decode, Debug, Default)]
+pub struct DiskNode {
+    /// Root directory for cached entries; created on demand if absent.
+    #[knus(argument)]
+    pub path: String,
+    /// Byte cap for the on-disk tier, e.g. `10GiB` (default 1GiB).
+    #[knus(property)]
+    pub size: Option<String>,
 }
 
 /// `rate-limit "100/min" burst=200` — parsed into a real quota in the build step
