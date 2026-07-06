@@ -147,18 +147,21 @@ trillium proxy http://app-1:4000 http://app-2:4000 --strategy connection-countin
 Strategies: `round-robin`, `connection-counting`, `random`, and `forward` (a
 classic forward proxy, including `CONNECT` tunneling — pass no upstreams).
 
-The proxy ships with an in-memory response **cache** (honoring caching headers),
+The proxy ships with a response **cache** (honoring caching headers),
 **compression**, WebSocket upgrade passthrough, and the same `--rate-limit`
 controls as `serve`:
 
 ```sh
-# 1 GiB cache, evict entries idle for 5 minutes, throttle abusive clients
+# 1 GiB in-memory cache, evict entries idle for 5 minutes, throttle abusive clients
 trillium proxy http://localhost:4000 \
-  --cache-capacity 1GiB --cache-time-to-idle 5m \
+  --cache-memory-capacity 1GiB --cache-time-to-idle 5m \
   --rate-limit 1000/min
 ```
 
-Use `--no-cache` to disable caching entirely. When an upstream is `https://`,
+The cache is in-memory by default; point `--cache-disk` at a directory to add a
+durable on-disk tier that survives restarts (`--cache-disk` alone tiers hot
+memory over disk; add `--cache-memory-capacity 0` to cache only to disk). Use
+`--no-cache` to disable caching entirely. When an upstream is `https://`,
 select a client TLS backend with `--client-tls` (`-k`/`--insecure` skips
 verification for self-signed dev certs).
 
@@ -184,9 +187,12 @@ compression true
 rate-limit "100/min" burst=200
 
 // Opt-in response cache for proxied upstreams (off unless declared, unlike
-// `trillium proxy`). A bare `cache` node enables it with defaults.
+// `trillium proxy`). A bare `cache` node enables it with defaults. Declare
+// `memory`, `disk`, or both: `disk` (and the tiered `memory`+`disk` form)
+// persists cached responses across restarts.
 cache {
-    capacity "256MiB"
+    memory "256MiB"
+    disk "/var/cache/trillium" size="10GiB"
     time-to-idle "5m"
 }
 

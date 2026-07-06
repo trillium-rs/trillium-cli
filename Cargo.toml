@@ -94,6 +94,10 @@ proxy = [
   "dep:size",
   "trillium-logger/client",
   "trillium-cache/client",
+  # Disk-backed and tiered response caching, shared with `gateway` via
+  # `src/cache.rs`. `fs` needs a runtime; the proxy runs on smol.
+  "trillium-cache/fs",
+  "trillium-cache/smol",
 ]
 gateway = [
   # Per-host SNI TLS (`gateway/sni.rs`) is built directly on rustls
@@ -124,6 +128,10 @@ gateway = [
   "dep:humantime",
   "trillium-logger/client",
   "trillium-cache/client",
+  # Disk-backed and tiered response caching. `fs` needs a runtime; the gateway
+  # runs on smol (`trillium_smol`), matching the rest of the binary.
+  "trillium-cache/fs",
+  "trillium-cache/smol",
 ]
 grpc = ["dep:trillium-grpc-codegen"]
 openssl = ["dep:trillium-openssl"]
@@ -147,27 +155,27 @@ serde_json = { version = "1.0.150", optional = true }
 trillium = { version = "1.3.0", optional = true }
 trillium-native-tls = { version = "0.6.3", optional = true }
 trillium-rustls = { version = "0.11.3", optional = true }
-trillium-proxy = { version = "0.8.4", optional = true }
+trillium-proxy = { version = "0.8.5", optional = true }
 trillium-router = { version = "0.5.2", optional = true }
 trillium-static = { version = "0.6.1", features = ["smol"], optional = true }
 trillium-websockets = { version = "0.8.2", features = [
   "json",
 ], optional = true }
 trillium-smol = { version = "0.7.0" }
-trillium-client = { version = "0.9.9", features = [
+trillium-client = { version = "0.9.10", features = [
   "sonic-rs",
   "hickory",
   "sse",
 ], optional = true }
 trillium-client-retry = { version = "0.0.1", optional = true }
-trillium-http = { version = "1.4.1", optional = true }
+trillium-http = { version = "1.4.2", optional = true }
 trillium-logger = { version = "0.5.4", optional = true }
 trillium-html-rewriter = { version = "0.6", optional = true }
 trillium-quinn = { version = "0.1.6", optional = true, features = [
   "webpki-roots",
 ] }
 trillium-openssl = { version = "0.2", optional = true }
-trillium-server-common = "0.7.7"
+trillium-server-common = "0.7.8"
 trillium-grpc-codegen = { version = "0.3", optional = true }
 trillium-cache = { version = "0.2", optional = true }
 trillium-redirect = { version = "0.3", optional = true, features = ["client"] }

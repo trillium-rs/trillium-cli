@@ -176,12 +176,42 @@ on by default; a gateway shouldn't silently cache dynamic upstreams.) A bare
 
 ```kdl
 cache {
-    capacity "256MiB"      // total in-memory size (default 256MiB)
-    max-body "16MiB"       // largest cacheable body; bigger streams uncached (default 16MiB)
-    time-to-idle "5m"      // evict entries not read within this duration
-    time-to-live "1h"      // evict entries this long after they're stored
+    memory "256MiB"                          // in-memory tier size (default 256MiB)
+    disk "/var/cache/trillium" size="10GiB"  // on-disk tier; persists across restarts (default 1GiB)
+    max-body "16MiB"                         // largest cacheable body; bigger streams uncached (default 16MiB)
+    time-to-idle "5m"                        // evict entries not read within this duration
+    time-to-live "1h"                        // evict entries this long after they're stored
 }
 ```
+
+#### Storage tiers
+
+Which of `memory` and `disk` you declare picks the storage backend:
+
+| Config | Backend | Survives restart? |
+|--------|---------|-------------------|
+| `memory` only (or a bare `cache`) | in-memory | no |
+| `disk` only | on-disk | **yes** |
+| both `memory` and `disk` | a hot in-memory tier over a durable on-disk tier | **yes** |
+
+The **on-disk** tier writes each cached response under the `disk` path (created
+on demand) as a metadata sidecar plus a body file, so the cache is warm again
+immediately after a restart or deploy rather than re-fetching every entry from
+the origin. Its `size` property caps total stored body bytes (default 1GiB),
+evicting least-recently-used entries when full.
+
+The **tiered** form (both declared) serves the working set from memory and
+writes through to disk in the background, giving you in-memory read speed with
+on-disk durability: after a restart the in-memory tier is empty but repopulates
+from disk as entries are served.
+
+`max-body` and the eviction durations (`time-to-idle`, `time-to-live`) are all
+optional and apply across whichever tiers exist.
+
+:::note Backward compatibility
+`capacity` is accepted as a deprecated alias for `memory` so pre-tiering configs
+keep working; prefer `memory` in new configs.
+:::
 
 One cache (and one connection pool) is shared across every `proxy` directive in
 the whole process. When caching is enabled, the gateway also adds

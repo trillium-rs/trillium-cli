@@ -9,6 +9,10 @@
 
 #[cfg(feature = "bench")]
 pub(crate) mod bench;
+// Shared response-cache (memory/disk/tiered) construction for the `proxy` and
+// `gateway` outbound clients.
+#[cfg(any(feature = "proxy", feature = "gateway"))]
+pub(crate) mod cache;
 #[cfg(feature = "client")]
 pub(crate) mod client;
 #[cfg(all(unix, feature = "dev-server"))]
