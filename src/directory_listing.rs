@@ -5,13 +5,16 @@
 //! request to a directory but has no index file to serve, it records a
 //! [`ResolvedDirectory`][trillium_static::ResolvedDirectory] in conn state and
 //! falls through without halting. [`DirectoryListing`] is placed after the file
-//! handler: if that state is present it renders a self-contained HTML listing of
-//! the directory; otherwise it leaves the conn untouched so the normal 404 path
+//! handler: if that state is present it renders an HTML listing of the
+//! directory; otherwise it leaves the conn untouched so the normal 404 path
 //! applies.
 //!
-//! The page is built as a plain `String` — no template engine, no external
-//! assets, no network requests — so it works the moment the binary runs.
+//! The page is built as a plain `String` — no template engine, no network
+//! requests. Its one dependency is [`crate::assets`], which must be mounted
+//! ahead of the file handler to serve the [`LISTING_CSS`] stylesheet the page
+//! links.
 
+use crate::assets::{BASE_CSS, LISTING_CSS, THEME_HEAD, THEME_TOGGLE};
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use querystrong::QueryStrong;
 use size::Size;
@@ -95,17 +98,42 @@ impl Sort {
 
 /// Renders an HTML directory index when the static file handler resolved a
 /// directory it could not serve an index from.
-#[derive(Debug, Clone, Copy)]
-pub struct DirectoryListing;
+///
+/// `renderable` is an optional predicate (keyed on a lower-cased file
+/// extension): when set, matching file rows get a `?render` link. `serve`
+/// supplies it under `--render`; `gateway`, which has no render support, leaves
+/// it `None`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DirectoryListing {
+    renderable: Option<fn(&str) -> bool>,
+}
+
+impl DirectoryListing {
+    /// A listing with no `?render` links.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// A listing that links `?render` for entries `renderable` accepts.
+    #[cfg(feature = "serve-render")]
+    pub fn with_renderable(renderable: fn(&str) -> bool) -> Self {
+        Self {
+            renderable: Some(renderable),
+        }
+    }
+}
 
 impl Handler for DirectoryListing {
     async fn run(&self, conn: Conn) -> Conn {
         // Pull owned copies so the immutable borrows of `conn` end before we
         // build the response.
-        let Some((fs_path, url_path)) = conn
-            .resolved_directory()
-            .map(|dir| (dir.path().to_path_buf(), conn.path().to_string()))
-        else {
+        let Some((fs_path, url_path, prefix)) = conn.resolved_directory().map(|dir| {
+            (
+                dir.path().to_path_buf(),
+                request_path(&conn).to_string(),
+                mount_prefix(&conn).to_string(),
+            )
+        }) else {
             return conn;
         };
         let sort = Sort::from_query(conn.querystring());
@@ -123,12 +151,41 @@ impl Handler for DirectoryListing {
             }
         };
 
-        let body = render(&url_path, &entries, sort);
+        let body = render(&url_path, &prefix, &entries, sort, self.renderable);
 
         conn.with_response_header(ContentType, "text/html; charset=utf-8")
             .ok(body)
             .halt()
     }
+}
+
+/// The full request path, query stripped.
+///
+/// [`Conn::path`] is *router-relative* — under `gateway`'s `route "/docs/*"` a
+/// request for `/docs/sub/` arrives here as `sub/`. Every link on the page is
+/// absolute, so they must be built from the whole path instead.
+fn request_path(conn: &Conn) -> &str {
+    conn.path_and_query()
+        .split_once('?')
+        .map_or_else(|| conn.path_and_query(), |(path, _)| path)
+}
+
+/// The path prefix a router stripped before reaching this handler (`/docs` for
+/// `route "/docs/*"`; empty for `serve`, which has no router).
+///
+/// The assets handler is mounted in the same stack, so it answers under the same
+/// prefix — the stylesheet has to be linked relative to it, not from the origin
+/// root.
+///
+/// Found by subtracting the router-relative [`Conn::path`] from the full request
+/// path. Both ends are slash-normalized first: the full path of a directory
+/// request keeps its trailing slash (`/docs/sub/`) while `path` does not
+/// (`sub`), so they only line up once trimmed.
+fn mount_prefix(conn: &Conn) -> &str {
+    let full = request_path(conn).trim_end_matches('/');
+    full.strip_suffix(conn.path().trim_matches('/'))
+        .unwrap_or("")
+        .trim_end_matches('/')
 }
 
 /// One row in the listing.
@@ -209,6 +266,16 @@ fn encode_segment(segment: &str) -> impl std::fmt::Display + '_ {
     utf8_percent_encode(segment, SEGMENT)
 }
 
+/// The lower-cased extension of a file name (empty if none), for the renderable
+/// predicate.
+fn extension(name: &str) -> String {
+    Path::new(name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+}
+
 /// HTML-escape text destined for an element body or attribute value.
 fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
@@ -266,8 +333,17 @@ fn header_cell(label: &str, key: SortKey, sort: Sort, extra_class: &str) -> Stri
     )
 }
 
-/// Build the full HTML page for `url_path` (the request path) and its entries.
-fn render(url_path: &str, entries: &[Entry], sort: Sort) -> String {
+/// Build the full HTML page for `url_path` (the full request path) and its
+/// entries. `prefix` is the router-stripped mount prefix, used to reach the
+/// stylesheet. `renderable`, when set, decides which file rows get a `?render`
+/// link.
+fn render(
+    url_path: &str,
+    prefix: &str,
+    entries: &[Entry],
+    sort: Sort,
+    renderable: Option<fn(&str) -> bool>,
+) -> String {
     // Absolute base for hrefs, always trailing-slashed so it works whether or
     // not the request path had a trailing slash.
     let base = if url_path.ends_with('/') {
@@ -285,8 +361,10 @@ fn render(url_path: &str, entries: &[Entry], sort: Sort) -> String {
     );
     let mut rows = String::new();
 
-    // Parent link, unless we're already at the root.
-    if base != "/" {
+    // Parent link, unless we're already at the root of what's mounted here —
+    // under a router prefix that's `/docs/`, not `/`, and linking above it would
+    // leave the routes this listing lives in.
+    if base != format!("{prefix}/") {
         let parent = parent_path(&base);
         let _ = write!(
             rows,
@@ -304,10 +382,24 @@ fn render(url_path: &str, entries: &[Entry], sort: Sort) -> String {
             Some(len) => Size::from_bytes(len).to_string(),
             None => "\u{2014}".to_string(),
         };
+        // When rendering is enabled and the file is renderable, the name links to
+        // the rendered view (that's what a reader almost always wants) and a
+        // "view raw" link exposes the untransformed bytes. Everything else links
+        // straight to the file, with no extra link.
+        let renders = matches!(renderable, Some(is_renderable)
+            if !entry.is_dir && is_renderable(&extension(&entry.name)));
+        let (name_href, raw_link) = if renders {
+            (
+                format!("{href}?render"),
+                format!("<a class=\"raw\" href=\"{href}\" title=\"raw\">view raw</a>"),
+            )
+        } else {
+            (href, String::new())
+        };
         let _ = write!(
             rows,
             "<tr><td class=\"name\"><a \
-             href=\"{href}\">{icon}<span>{name}{slash}</span></a></td><td \
+             href=\"{name_href}\">{icon}<span>{name}{slash}</span></a>{raw_link}</td><td \
              class=\"size\">{size}</td><td class=\"modified\">{modified}</td></tr>",
             name = escape(&entry.name),
             modified = format_modified(entry.modified),
@@ -321,9 +413,12 @@ fn render(url_path: &str, entries: &[Entry], sort: Sort) -> String {
 <meta charset=\"utf-8\">\n\
 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
 <title>{title}</title>\n\
-<style>{STYLE}</style>\n\
+{THEME_HEAD}\n\
+<link rel=\"stylesheet\" href=\"{prefix}{BASE_CSS}\">\n\
+<link rel=\"stylesheet\" href=\"{prefix}{LISTING_CSS}\">\n\
 </head>\n\
 <body>\n\
+{THEME_TOGGLE}\n\
 <main>\n\
 <h1>{title}</h1>\n\
 <table>\n\
@@ -346,33 +441,9 @@ fn parent_path(base: &str) -> String {
     }
 }
 
+/// Row icons. Inline rather than in `listing.css` because they're content, not
+/// styling — the page emits one per row, and they're `fill`ed by the stylesheet.
 const FOLDER_ICON: &str = "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M1.5 \
                            2.5h4l1.5 1.5h7.5v9h-13z\"/></svg>";
 const FILE_ICON: &str =
     "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M3 1.5h6L13 5v9.5H3z\"/></svg>";
-
-const STYLE: &str =
-    "\
-:root{color-scheme:light \
-     dark;--fg:#1a1a1a;--muted:#6b7280;--bg:#ffffff;--row:#f3f4f6;--border:#e5e7eb;--accent:#\
-     2563eb;--icon:#9ca3af;}@media(prefers-color-scheme:dark){:root{--fg:#e5e7eb;--muted:#9ca3af;\
-     --bg:#0b0d12;--row:#161a22;--border:#262b36;--accent:#60a5fa;--icon:#6b7280;}}*{box-sizing:\
-     border-box;}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 \
-     -apple-system,BlinkMacSystemFont,'Segoe \
-     UI',Roboto,Helvetica,Arial,sans-serif;}main{max-width:880px;margin:0 auto;padding:2.5rem \
-     1.25rem 4rem;}h1{font-size:1.15rem;font-weight:600;margin:0 0 \
-     1.25rem;word-break:break-all;}table{width:100%;border-collapse:collapse;}th{text-align:left;\
-     font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);\
-     font-weight:600;padding:0 .75rem .5rem;border-bottom:1px solid var(--border);}th.sortable \
-     a{display:inline-flex;align-items:center;gap:.2rem;color:inherit;text-decoration:none;font:\
-     inherit;}th.sortable a:hover{color:var(--fg);}th.active{color:var(--fg);}td{padding:.45rem \
-     .75rem;border-bottom:1px solid var(--border);white-space:nowrap;}tr:hover \
-     td{background:var(--row);}td.name{width:100%;}td.size,th.size{text-align:right;\
-     font-variant-numeric:tabular-nums;color:var(--muted);}td.modified,th.modified{color:\
-     var(--muted);font-variant-numeric:tabular-nums;}a{display:flex;align-items:center;gap:.5rem;\
-     color:var(--accent);text-decoration:none;overflow:hidden;}a:hover \
-     span{text-decoration:underline;}a \
-     span{overflow:hidden;text-overflow:ellipsis;}svg{flex:none;width:1rem;height:1rem;fill:\
-     var(--icon);}footer{margin-top:1.5rem;font-size:.8rem;color:var(--muted);}footer \
-     a{display:inline;color:var(--muted);text-decoration:underline;}@media(max-width:520px){td.\
-     modified,th.modified{display:none;}}";

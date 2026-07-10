@@ -17,6 +17,7 @@ use super::{
     upstream,
 };
 use crate::{
+    assets,
     cache::{self, CacheSpec},
     directory_listing::DirectoryListing,
     tls::Tls,
@@ -379,18 +380,27 @@ fn push_rewrite_html(stack: &mut Vec<BoxedHandler>, rewrite: &RewriteHtmlDirecti
     stack.push(BoxedHandler::new(handler));
 }
 
-/// `files` → a static file handler, optionally followed by a directory listing.
+/// `files` → a static file handler, optionally bracketed by the embedded assets
+/// and a directory listing.
 fn push_files(stack: &mut Vec<BoxedHandler>, files: &FilesDirective) {
+    let directory_listing = files.directory_listing.unwrap_or(false);
+
+    // The listing links `/_css/listing.css`, so the assets that serve it go ahead
+    // of the file handler (a hit serves-and-halts; a miss falls through).
+    if directory_listing {
+        stack.push(BoxedHandler::new(assets::handler()));
+    }
+
     let mut handler = StaticFileHandler::new(&files.root);
     if let Some(index) = &files.index {
         handler = handler.with_index_file(index);
     }
     stack.push(BoxedHandler::new(handler));
 
-    if files.directory_listing.unwrap_or(false) {
+    if directory_listing {
         // Runs only when the file handler resolved a directory it had no index
         // for; otherwise leaves the conn untouched. Same pattern as `serve`.
-        stack.push(BoxedHandler::new(DirectoryListing));
+        stack.push(BoxedHandler::new(DirectoryListing::new()));
     }
 }
 

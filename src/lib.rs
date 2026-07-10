@@ -7,6 +7,10 @@
     unused_qualifications
 )]
 
+// Compile-time-embedded stylesheets and fonts for the pages this binary
+// generates — the directory listing and `serve --render`'s pages.
+#[cfg(any(feature = "serve", feature = "gateway"))]
+pub(crate) mod assets;
 #[cfg(feature = "bench")]
 pub(crate) mod bench;
 // Shared response-cache (memory/disk/tiered) construction for the `proxy` and
