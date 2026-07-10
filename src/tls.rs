@@ -2,7 +2,7 @@
 use std::path::PathBuf;
 #[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 use std::sync::Arc;
-use trillium_client::{Client, Url};
+use trillium_client::Client;
 #[cfg(all(feature = "rustls", any(feature = "client", feature = "proxy")))]
 use trillium_rustls::rustls::{
     self, DigitallySignedStruct, SignatureScheme,
@@ -262,7 +262,14 @@ fn insecure_rustls_client() -> Client {
     client
 }
 
-pub fn parse_url(src: &str) -> Result<Url, String> {
+#[cfg(any(
+    feature = "client",
+    feature = "bench",
+    feature = "proxy",
+    feature = "serve"
+))]
+pub fn parse_url(src: &str) -> Result<trillium_client::Url, String> {
+    use trillium_client::Url;
     if src.starts_with("http") {
         src.parse::<Url>().map_err(|e| e.to_string())
     } else {

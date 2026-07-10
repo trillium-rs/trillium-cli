@@ -1,0 +1,47 @@
+/* Page shell: fonts, palette (light + dark), reading measure, filename colophon.
+   Served embedded at /_css/base.css; the fonts it references are at /_fonts/. */
+@font-face{font-family:'EB Garamond';font-style:normal;font-weight:400;font-display:swap;src:url("/_fonts/EBGaramond-Regular.woff2") format("woff2");}
+@font-face{font-family:'EB Garamond';font-style:italic;font-weight:400;font-display:swap;src:url("/_fonts/EBGaramond-Italic.woff2") format("woff2");}
+@font-face{font-family:'EB Garamond';font-style:normal;font-weight:600;font-display:swap;src:url("/_fonts/EBGaramond-SemiBold.woff2") format("woff2");}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url("/_fonts/IBMPlexMono-Regular.woff2") format("woff2");}
+:root{color-scheme:light dark;--bg:#fbfaf6;--fg:#242018;--muted:#7a7264;--rule:#e8e2d4;--accent:#8a4a30;--code-bg:#f0ece0;--code-fill:color-mix(in srgb, var(--code-bg) 40%, transparent);}
+/* Dark palette. Applied to the system-dark default *unless* the visitor forced
+   light via the corner toggle, and to an explicit `data-theme="dark"` choice
+   whatever the system preference. `[data-theme="light"]` just leaves the :root
+   light defaults standing, so those vars need no repeating. */
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#181510;--fg:#e9e3d4;--muted:#a49b86;--rule:#332e23;--accent:#d99570;--code-bg:#221e16;--code-fill:color-mix(in srgb, #3a3324 68%, transparent);}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#181510;--fg:#e9e3d4;--muted:#a49b86;--rule:#332e23;--accent:#d99570;--code-bg:#221e16;--code-fill:color-mix(in srgb, #3a3324 68%, transparent);}
+:root[data-theme="light"]{color-scheme:light;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 20.5px/1.82 'EB Garamond',Georgia,serif;font-feature-settings:"onum" 1,"liga" 1;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+main{max-width:40rem;margin:0 auto;padding:3.5rem 1.5rem 5rem;}
+h1{margin:0 0 2.4rem;font:400 .72rem/1.5 'IBM Plex Mono',monospace;letter-spacing:.22em;text-transform:uppercase;text-align:center;color:var(--muted);overflow-wrap:anywhere;}
+a{color:var(--accent);}
+footer{margin-top:3.5rem;padding-top:1.4rem;border-top:1px solid var(--rule);font:400 .7rem/1.6 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;text-align:center;color:var(--muted);}
+footer a{color:var(--muted);}
+
+/* A small "view raw" link under the colophon on rendered pages, echoing the
+   colophon's own small-mono treatment. */
+.pagenav{margin:-1.7rem 0 2.4rem;text-align:center;font:400 .66rem/1.5 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;}
+.pagenav a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--rule);padding-bottom:.15em;}
+.pagenav a:hover{color:var(--accent);border-color:var(--accent);}
+
+/* Corner theme toggle, cycling auto → light → dark. The icon reflects the chosen
+   *state* (not the effective theme), so it's driven purely by the `data-theme`
+   attribute: auto is the attribute's absence (OS preference drives the palette),
+   and explicit light/dark set it. */
+.theme-toggle{position:fixed;top:1.1rem;right:1.1rem;z-index:10;display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;padding:0;background:var(--bg);color:var(--muted);border:1px solid var(--rule);border-radius:50%;cursor:pointer;transition:color .15s,border-color .15s;}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent);}
+.theme-toggle svg{width:1.02rem;height:1.02rem;fill:currentColor;display:block;}
+.theme-toggle .sun,.theme-toggle .moon{display:none;} /* auto (no attribute) shows .auto */
+:root[data-theme="light"] .theme-toggle .auto{display:none;}
+:root[data-theme="light"] .theme-toggle .sun{display:block;}
+:root[data-theme="dark"] .theme-toggle .auto{display:none;}
+:root[data-theme="dark"] .theme-toggle .moon{display:block;}
+
+/* Code view: source can't reflow, so drop the 40rem reading measure and give it
+   near-full width (100% minus a ~5% gutter each side). The block sizes to its
+   longest line (fit-content) up to that width, then scrolls — short files hug
+   left instead of stretching, long lines never force the page to scroll. */
+body.wide main{max-width:none;padding-left:5%;padding-right:5%;}
+body.wide pre.code{width:fit-content;max-width:100%;margin-inline:auto;}
