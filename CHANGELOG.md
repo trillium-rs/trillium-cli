@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0](https://github.com/trillium-rs/trillium-cli/compare/v0.11.1...v0.12.0) - 2026-07-11
+
+### Added
+
+- [**breaking**] render content
+- cache persistence for proxy and gateway
+
+### Fixed
+
+- *(deps)* update rust crate trillium-cache to 0.2
+
+### Other
+
+- *(deps)* lock file maintenance
+- *(deps)* update docusaurus monorepo to v3.10.2
+- *(deps)* update dependency typescript to v7
+- *(deps)* update versions
+
 ## [0.11.1](https://github.com/trillium-rs/trillium-cli/compare/v0.11.0...v0.11.1) - 2026-07-04
 
 ### Fixed
