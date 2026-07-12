@@ -554,9 +554,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.66"
+version = "1.2.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5d6cac793997bd970000024b2934968efe83b382de4fdcf4fcb46b6ee4ad996"
+checksum = "e17dd265a7d0f31ef544e1b20e03add05d3b45b491b633b10d67145d2acc1a38"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -2814,9 +2814,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.9.4"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44c5af06bb1b7d3216d91932aed5265164bf384dc89cd6ba05cf59a35f5f76ea"
+checksum = "b9ef1d0d795eb7d84685bca4f72f3649f064e6641543d3a8c415898726a57b41"
 dependencies = [
  "rand_chacha",
  "rand_core 0.9.5",
@@ -3902,9 +3902,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-client"
-version = "0.9.10"
+version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83e5e1e9de516da09b9615f539783b30b611ab95e26b1a048767efb8b6e86f8b"
+checksum = "c2f7dd9b3bed0b898fef56dcaf3c6aae4c34b7d31ba7a922ef847ee2d34a9eab"
 dependencies = [
  "async-channel",
  "async-lock",
@@ -3991,9 +3991,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-http"
-version = "1.4.2"
+version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c2a75892ba169be7ca3a1746fa0354eb00145494257e00d033e30ef60ddb6d1"
+checksum = "d5b8a4754740bd602d54e51bfca9c0641578481cb52f86e8f64e84e4bfb016e7"
 dependencies = [
  "atomic-waker",
  "encoding_rs",
@@ -4286,7 +4286,7 @@ checksum = "6c01152af293afb9c7c2a57e4b559c5620b421f6d133261c60dd2d0cdb38e6b8"
 dependencies = [
  "bytes",
  "log",
- "rand 0.9.4",
+ "rand 0.9.5",
  "thiserror",
 ]
 
