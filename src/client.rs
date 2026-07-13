@@ -83,8 +83,8 @@ pub struct ClientCli {
     tls: Tls,
 
     /// http version
-    #[arg(long, verbatim_doc_comment, value_enum, default_value_t)]
-    http_version: HttpVersion,
+    #[arg(long, verbatim_doc_comment, value_enum)]
+    http_version: Option<HttpVersion>,
 
     /// route DNS through an encrypted resolver instead of the system resolver
     ///
@@ -255,10 +255,6 @@ pub struct ClientCli {
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, clap::ValueEnum, Default)]
 #[non_exhaustive]
 pub enum HttpVersion {
-    /// HTTP/0.9
-    #[value(name = "0.9", alias = "http/0.9", alias = "HTTP/0.9")]
-    Http0_9,
-
     /// HTTP/1.0
     #[value(name = "1.0", alias = "http/1.0", alias = "HTTP/1.0")]
     Http1_0,
@@ -288,7 +284,6 @@ pub enum HttpVersion {
 impl From<HttpVersion> for Version {
     fn from(value: HttpVersion) -> Self {
         match value {
-            HttpVersion::Http0_9 => Version::Http0_9,
             HttpVersion::Http1_0 => Version::Http1_0,
             HttpVersion::Http1_1 => Version::Http1_1,
             HttpVersion::Http2 => Version::Http2,
@@ -383,7 +378,10 @@ impl ClientCli {
             client.with_timeout(self.timeout)
         };
         let mut conn = client.build_conn(self.method, self.url.clone());
-        conn.set_http_version(self.http_version.into());
+
+        if let Some(http_version) = self.http_version {
+            conn.set_http_version(http_version.into());
+        }
 
         conn.request_headers_mut().extend(self.headers.clone());
 
