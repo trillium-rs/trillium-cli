@@ -4123,9 +4123,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-ratelimit"
-version = "0.0.1"
+version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0195d328ae146bd921824e0ebaf43699585cd456e5d105423aa504c675b415b5"
+checksum = "65d8a3533eef96988cdcaf3a49c91f960f87a1ffee8c698355f896f3e73a780e"
 dependencies = [
  "base64 0.22.1",
  "fastrand",
