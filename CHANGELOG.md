@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.3](https://github.com/trillium-rs/trillium-cli/compare/v0.12.2...v0.12.3) - 2026-07-23
+
+### Fixed
+
+- *(deps)* update rust crate trillium-ratelimit to 0.0.2
+
+### Other
+
+- *(deps)* update rust crate trillium-html-rewriter to v0.6.1
+- *(deps)* update rust crate serde to v1.0.229
+- *(deps)* update rust crate trillium-http to v1.6.0
+- *(deps)* update rust crate hdrhistogram to v7.6.0
+- *(deps)* update rust crate trillium-client to v0.9.13
+- *(deps)* lock file maintenance
+- *(deps)* update rust crate clap to v4.6.2
+- *(deps)* update rust crate trillium-caching-headers to v0.4.2
+- *(deps)* update rust crate trillium-server-common to v0.7.10
+- *(deps)* update actions/setup-node action to v7
+
 ## [0.12.2](https://github.com/trillium-rs/trillium-cli/compare/v0.12.1...v0.12.2) - 2026-07-13
 
 ### Fixed
