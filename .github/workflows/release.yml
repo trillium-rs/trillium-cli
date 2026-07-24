@@ -128,7 +128,7 @@ jobs:
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
       - name: "Install cmake (aws-lc-rs)"
-        uses: "lukka/get-cmake@v4.3.4"
+        uses: "lukka/get-cmake@v4.4.0"
       - name: "Install NASM (aws-lc-rs on Windows)"
         uses: "ilammy/setup-nasm@v1"
         if: "runner.os == 'Windows'"
