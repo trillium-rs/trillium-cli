@@ -3616,7 +3616,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.52.0",
@@ -3824,9 +3824,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-caching-headers"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d96b26dacbc4e5cc32e5c7843cdd17f5b9d6ea91ab02288762c6f20b39649f98"
+checksum = "80722594a0a86ab97acfcbe154f0633704489ebfe72aa2fb1ccd76c742546c9c"
 dependencies = [
  "etag",
  "httpdate",
