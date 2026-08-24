@@ -3616,7 +3616,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -3989,9 +3989,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-http"
-version = "1.6.0"
+version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e192b2bf293b95da8659f069f8a927fc9ba805b47fce0d17904f476548b0fe70"
+checksum = "acc48cfa2174ee4b55d7da0c918cf1ff0f8cfdc54518a492986187c9c0753c66"
 dependencies = [
  "atomic-waker",
  "encoding_rs",
