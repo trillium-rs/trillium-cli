@@ -3835,7 +3835,7 @@ dependencies = [
 
 [[package]]
 name = "trillium-cli"
-version = "0.12.2"
+version = "0.12.3"
 dependencies = [
  "ansi-to-html",
  "async-broadcast",
